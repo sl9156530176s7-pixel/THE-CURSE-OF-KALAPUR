@@ -270,7 +270,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         menuCam.lookAt(0, 2.5, 12);
         renderer.render(scene, menuCam);
       } else if (mode === 'playing') {
-        if (!isJumpscaringRef.current && !gameState.isGameOver && !gameState.isVictory) {
+        if (!isJumpscaringRef.current && !gameState.isDayTransitioning && !gameState.isGameOver && !gameState.isVictory) {
           // Dynamic Tatya horror chant volume (higher in kitchen and near upper sanctum)
           const inKitchen = player.position.x < -8 && player.position.z > 6;
           const inSanctum = player.position.z < -8;
@@ -377,8 +377,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                   gameState.isGameOver = true;
                   gameState.notify();
                 } else {
-                  // Wake up next day on bed in Guest Bedchamber
-                  player.setPosition([-12, 4.5, 3.5], 0);
+                  // Wake up next day in the exact same starting Foyer spawn point
+                  player.setPosition([0, 1.6, 12], 0);
                   ghost.resetToStart();
                   soundManager.setMusicMood('explore');
                 }

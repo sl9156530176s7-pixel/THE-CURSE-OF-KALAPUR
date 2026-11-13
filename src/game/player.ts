@@ -708,9 +708,22 @@ export class PlayerController {
   public setPosition(pos: [number, number, number], rotY = 0) {
     this.position.set(pos[0], pos[1], pos[2]);
     this.camera.position.copy(this.position);
+    this.velocity.set(0, 0, 0);
+    this.keys = {};
+    this.touchMove.x = 0;
+    this.touchMove.z = 0;
+    this.touchLook.x = 0;
+    this.touchLook.y = 0;
     this.yaw = rotY;
     this.targetYaw = rotY;
     this.pitch = 0;
     this.targetPitch = 0;
+    gameState.isHiding = null;
+    gameState.currentHidingId = null;
+    gameState.isCrouching = false;
+    gameState.isSprinting = false;
+    gameState.touchSprint = false;
+    gameState.stamina = 100;
+    gameState.notify();
   }
 }

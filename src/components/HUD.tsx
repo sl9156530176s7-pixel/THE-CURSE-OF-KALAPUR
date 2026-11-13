@@ -91,7 +91,8 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
   const updateJoystick = (clientX: number, clientY: number) => {
     const dx = clientX - joystickCenter.current.x;
     const dy = clientY - joystickCenter.current.y;
-    const maxRadius = 42;
+    const baseSize = joystickRef.current ? joystickRef.current.clientWidth : 152;
+    const maxRadius = Math.max(48, Math.round(baseSize * 0.35));
     const distance = Math.hypot(dx, dy);
 
     let clampedX = dx;
@@ -543,19 +544,22 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
         />
       )}
 
-      {/* 5. VIRTUAL JOYSTICK (BOTTOM LEFT - Compact for Horizontal Android) */}
+      {/* 5. VIRTUAL JOYSTICK (RAISED & ENLARGED FOR ANDROID HORIZONTAL PLAY) */}
       {touchEnabled && (
-        <div className="absolute bottom-3 sm:bottom-5 left-3 sm:left-5 z-20 pointer-events-auto select-none">
+        <div
+          className="absolute bottom-11 sm:bottom-14 left-4 sm:left-7 z-20 pointer-events-auto select-none touch-none"
+          onContextMenu={(e) => e.preventDefault()}
+        >
           {/* Mobile Battery & Stamina Mini HUD above Joystick */}
-          <div className="mb-1.5 flex flex-col gap-1 w-28 sm:w-32 pointer-events-none">
+          <div className="mb-2 flex flex-col gap-1.5 w-36 sm:w-44 pointer-events-none">
             {/* Flashlight Battery Bar */}
-            <div className="flex items-center gap-1.5 bg-black/75 border border-stone-800/90 px-2 py-0.5 rounded backdrop-blur-xs shadow-md">
+            <div className="flex items-center gap-1.5 bg-black/80 border border-stone-800/90 px-2.5 py-1 rounded backdrop-blur-xs shadow-md">
               <Flashlight
-                className={`w-3 h-3 ${
+                className={`w-3.5 h-3.5 ${
                   gameState.flashlightOn && gameState.flashlightBattery > 0 ? 'text-yellow-400 animate-pulse' : 'text-stone-500'
                 }`}
               />
-              <div className="flex-1 bg-stone-800 h-1 rounded-full overflow-hidden">
+              <div className="flex-1 bg-stone-800 h-1.5 rounded-full overflow-hidden">
                 <div
                   className={`h-full transition-all duration-300 ${
                     gameState.flashlightBattery > 30 ? 'bg-yellow-500' : 'bg-red-500'
@@ -563,51 +567,51 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
                   style={{ width: `${gameState.flashlightBattery}%` }}
                 />
               </div>
-              <span className="text-[8px] font-mono text-stone-300 font-bold">{Math.round(gameState.flashlightBattery)}%</span>
+              <span className="text-[9px] sm:text-[10px] font-mono text-stone-200 font-bold">{Math.round(gameState.flashlightBattery)}%</span>
             </div>
 
             {/* Stamina Bar */}
-            <div className="flex items-center gap-1.5 bg-black/75 border border-stone-800/90 px-2 py-0.5 rounded backdrop-blur-xs shadow-md">
+            <div className="flex items-center gap-1.5 bg-black/80 border border-stone-800/90 px-2.5 py-1 rounded backdrop-blur-xs shadow-md">
               <Footprints
-                className={`w-3 h-3 ${gameState.isSprinting ? 'text-red-400 animate-pulse' : 'text-stone-500'}`}
+                className={`w-3.5 h-3.5 ${gameState.isSprinting ? 'text-red-400 animate-pulse' : 'text-stone-500'}`}
               />
-              <div className="flex-1 bg-stone-800 h-1 rounded-full overflow-hidden">
+              <div className="flex-1 bg-stone-800 h-1.5 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-red-500 transition-all duration-100"
                   style={{ width: `${gameState.stamina}%` }}
                 />
               </div>
-              <span className="text-[8px] font-mono text-stone-300 font-bold">{Math.round(gameState.stamina)}%</span>
+              <span className="text-[9px] sm:text-[10px] font-mono text-stone-200 font-bold">{Math.round(gameState.stamina)}%</span>
             </div>
           </div>
 
-          {/* Joystick Base */}
+          {/* Enlarged Joystick Base */}
           <div
             ref={joystickRef}
-            className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full border-2 bg-stone-950/70 backdrop-blur-md relative flex items-center justify-center touch-none shadow-2xl cursor-pointer ${
+            className={`w-36 h-36 sm:w-44 sm:h-44 rounded-full border-2 bg-stone-950/75 backdrop-blur-md relative flex items-center justify-center touch-none shadow-2xl cursor-pointer ${
               joystickActive
-                ? 'border-red-500 shadow-[0_0_25px_rgba(239,68,68,0.45)]'
-                : 'border-stone-700/80'
+                ? 'border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.55)]'
+                : 'border-stone-600/85'
             }`}
             onTouchStart={handleJoystickStart}
             onMouseDown={handleJoystickMouseDown}
           >
             {/* Outer concentric guide ring */}
-            <div className="absolute inset-2 rounded-full border border-stone-800/60 pointer-events-none" />
+            <div className="absolute inset-3 rounded-full border border-stone-700/70 pointer-events-none" />
 
             {/* Guide directional cross marks */}
-            <div className="absolute top-1.5 text-[9px] font-mono text-stone-500 font-bold pointer-events-none">▲</div>
-            <div className="absolute bottom-1.5 text-[9px] font-mono text-stone-500 font-bold pointer-events-none">▼</div>
-            <div className="absolute left-2 text-[9px] font-mono text-stone-500 font-bold pointer-events-none">◀</div>
-            <div className="absolute right-2 text-[9px] font-mono text-stone-500 font-bold pointer-events-none">▶</div>
+            <div className="absolute top-2 text-xs font-mono text-stone-400 font-bold pointer-events-none">▲</div>
+            <div className="absolute bottom-2 text-xs font-mono text-stone-400 font-bold pointer-events-none">▼</div>
+            <div className="absolute left-2.5 text-xs font-mono text-stone-400 font-bold pointer-events-none">◀</div>
+            <div className="absolute right-2.5 text-xs font-mono text-stone-400 font-bold pointer-events-none">▶</div>
 
             {/* Moving Knob (Zero-latency direct DOM transform) */}
             <div
               ref={knobRef}
-              className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-linear-to-b from-red-600 via-stone-900 to-black border-2 border-red-500 shadow-[0_0_18px_rgba(239,68,68,0.7)] flex items-center justify-center pointer-events-none will-change-transform"
+              className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-linear-to-b from-red-600 via-stone-900 to-black border-2 border-red-400 shadow-[0_0_22px_rgba(239,68,68,0.75)] flex items-center justify-center pointer-events-none will-change-transform"
             >
-              <div className="w-4 h-4 rounded-full bg-red-400/90 shadow-inner flex items-center justify-center">
-                <div className="w-1.5 h-1.5 rounded-full bg-white/80" />
+              <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-red-400/90 shadow-inner flex items-center justify-center">
+                <div className="w-2 h-2 rounded-full bg-white/85" />
               </div>
             </div>
           </div>
@@ -665,38 +669,44 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
         </div>
       )}
 
-      {/* 7. ANDROID / TOUCH SCREEN ACTION BUTTON CLUSTER (BOTTOM RIGHT - Compact Landscape Ergonomics) */}
+      {/* 7. ANDROID / TOUCH SCREEN ACTION BUTTON CLUSTER (RAISED & ENLARGED FOR HORIZONTAL PLAY) */}
       {touchEnabled ? (
-        <div className="absolute bottom-3 sm:bottom-5 right-3 sm:right-5 z-20 pointer-events-auto flex items-end gap-2.5 touch-none">
-          {/* Secondary Action Column (Flashlight, Sprint, Crouch) */}
-          <div className="grid grid-cols-2 sm:flex sm:flex-col gap-2 items-center">
+        <div
+          className="absolute bottom-11 sm:bottom-14 right-4 sm:right-7 z-20 pointer-events-auto flex items-end gap-3 sm:gap-4 touch-none"
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          {/* Secondary Action Grid (Flashlight, Sprint, Crouch) */}
+          <div className="grid grid-cols-2 sm:flex sm:flex-col gap-2.5 sm:gap-3 items-center">
             {/* Flashlight Toggle Button */}
             <button
               onTouchStart={handleTouchFlashlight}
               onClick={handleTouchFlashlight}
-              className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full border flex items-center justify-center shadow-lg transition active:scale-90 cursor-pointer backdrop-blur-sm ${
+              className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 flex flex-col items-center justify-center shadow-xl transition active:scale-90 cursor-pointer backdrop-blur-sm touch-none ${
                 gameState.flashlightOn && gameState.flashlightBattery > 0
-                  ? 'bg-yellow-950/85 border-yellow-500 text-yellow-300 shadow-[0_0_12px_rgba(234,179,8,0.5)]'
-                  : 'bg-stone-900/85 border-stone-700 text-stone-500'
+                  ? 'bg-yellow-950/85 border-yellow-400 text-yellow-300 shadow-[0_0_16px_rgba(234,179,8,0.55)]'
+                  : 'bg-stone-900/85 border-stone-600 text-stone-400'
               }`}
               title="Toggle Flashlight (F)"
             >
-              <Flashlight className="w-4 h-4 sm:w-5 sm:h-5" />
+              <Flashlight className="w-5 h-5 sm:w-6 sm:h-6 mb-0.5" />
+              <span className="text-[8px] sm:text-[9px] font-mono font-bold uppercase">
+                {gameState.flashlightOn ? 'LIGHT' : 'TORCH'}
+              </span>
             </button>
 
             {/* Sprint Toggle Button */}
             <button
               onTouchStart={handleTouchSprintToggle}
               onClick={handleTouchSprintToggle}
-              className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full border flex flex-col items-center justify-center shadow-lg transition active:scale-90 cursor-pointer backdrop-blur-sm ${
+              className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 flex flex-col items-center justify-center shadow-xl transition active:scale-90 cursor-pointer backdrop-blur-sm touch-none ${
                 gameState.isSprinting
-                  ? 'bg-red-950/90 border-red-500 text-red-200 shadow-[0_0_12px_rgba(239,68,68,0.6)]'
-                  : 'bg-stone-900/85 border-stone-700 text-stone-400'
+                  ? 'bg-red-950/90 border-red-400 text-red-200 shadow-[0_0_16px_rgba(239,68,68,0.6)]'
+                  : 'bg-stone-900/85 border-stone-600 text-stone-300'
               }`}
               title="Toggle Run"
             >
-              <Footprints className="w-3.5 h-3.5 sm:w-4 sm:h-4 mb-0.5" />
-              <span className="text-[7px] sm:text-[8px] font-mono font-bold uppercase">
+              <Footprints className="w-5 h-5 sm:w-5 sm:h-5 mb-0.5" />
+              <span className="text-[8px] sm:text-[9px] font-mono font-bold uppercase">
                 {gameState.isSprinting ? 'RUN' : 'WALK'}
               </span>
             </button>
@@ -705,15 +715,15 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
             <button
               onTouchStart={handleTouchCrouchToggle}
               onClick={handleTouchCrouchToggle}
-              className={`col-span-2 sm:col-span-1 w-11 h-11 sm:w-12 sm:h-12 rounded-full border flex flex-col items-center justify-center shadow-lg transition active:scale-90 cursor-pointer backdrop-blur-sm justify-self-end ${
+              className={`col-span-2 sm:col-span-1 w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 flex flex-col items-center justify-center shadow-xl transition active:scale-90 cursor-pointer backdrop-blur-sm justify-self-end touch-none ${
                 gameState.isCrouching
-                  ? 'bg-emerald-950/90 border-emerald-500 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.6)]'
-                  : 'bg-stone-900/85 border-stone-700 text-stone-400'
+                  ? 'bg-emerald-950/90 border-emerald-400 text-emerald-300 shadow-[0_0_16px_rgba(16,185,129,0.6)]'
+                  : 'bg-stone-900/85 border-stone-600 text-stone-300'
               }`}
               title="Toggle Stealth Crouch (Zero Noise)"
             >
-              <ShieldAlert className="w-3.5 h-3.5 sm:w-4 sm:h-4 mb-0.5" />
-              <span className="text-[7px] sm:text-[8px] font-mono font-bold uppercase">
+              <ShieldAlert className="w-5 h-5 sm:w-5 sm:h-5 mb-0.5" />
+              <span className="text-[8px] sm:text-[9px] font-mono font-bold uppercase">
                 {gameState.isCrouching ? 'SILENT' : 'CROUCH'}
               </span>
             </button>
@@ -723,15 +733,15 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
           <button
             onTouchStart={handleTouchInteract}
             onClick={handleTouchInteract}
-            className={`w-18 h-18 sm:w-20 sm:h-20 rounded-full border-2 flex flex-col items-center justify-center shadow-2xl transition-all duration-150 active:scale-90 cursor-pointer backdrop-blur-md ${
+            className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 flex flex-col items-center justify-center shadow-2xl transition-all duration-150 active:scale-90 cursor-pointer backdrop-blur-md touch-none ${
               currentInteractive || isHiding
-                ? 'bg-linear-to-b from-red-600 to-red-900 border-red-400 text-white shadow-[0_0_24px_rgba(220,38,38,0.8)] animate-pulse'
-                : 'bg-stone-950/85 border-stone-700 text-stone-400'
+                ? 'bg-linear-to-b from-red-600 to-red-900 border-red-300 text-white shadow-[0_0_28px_rgba(220,38,38,0.85)] animate-pulse'
+                : 'bg-stone-950/85 border-stone-600 text-stone-300'
             }`}
             title="Interact (E)"
           >
-            <Hand className="w-6 h-6 sm:w-7 sm:h-7 mb-0.5" />
-            <span className="text-[9px] sm:text-[10px] font-mono font-bold tracking-wider uppercase">
+            <Hand className="w-8 h-8 sm:w-9 sm:h-9 mb-1" />
+            <span className="text-[11px] sm:text-xs font-mono font-bold tracking-wider uppercase">
               {isHiding ? 'EXIT' : currentInteractive ? 'ACTION' : 'USE'}
             </span>
           </button>
@@ -936,7 +946,9 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
       {/* 9. BOTTOM CENTER: SUBTITLES */}
       {gameState.subtitleText && (
         <div
-          className={`absolute bottom-24 md:bottom-20 left-1/2 -translate-x-1/2 max-w-2xl text-center px-6 py-3 rounded text-xs md:text-sm tracking-wide font-sans shadow-2xl backdrop-blur-md transition-all ${
+          className={`absolute ${
+            touchEnabled ? 'bottom-4 sm:bottom-6 max-w-[260px] sm:max-w-md px-4 py-2' : 'bottom-24 md:bottom-20 max-w-2xl px-6 py-3'
+          } left-1/2 -translate-x-1/2 text-center rounded text-xs md:text-sm tracking-wide font-sans shadow-2xl backdrop-blur-md transition-all ${
             gameState.subtitleText.includes('TATYA')
               ? 'bg-red-950/95 border-2 border-red-600 text-red-100 font-bold shadow-[0_0_30px_rgba(220,38,38,0.7)]'
               : 'bg-black/90 border border-stone-800/90 text-stone-200'
@@ -997,7 +1009,7 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
               {gameState.dayTransitionText}
             </h1>
             <p className="text-stone-400 text-xs md:text-sm italic font-sans tracking-wide">
-              You awaken back inside the upper bedchamber... The tantric chants grow louder.
+              You awaken back in the Grand Foyer... The tantric chants grow louder.
             </p>
           </div>
         </div>

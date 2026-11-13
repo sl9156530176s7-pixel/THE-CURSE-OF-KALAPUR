@@ -963,6 +963,7 @@ export class KalapurGhost {
     }
     this.state = 'patrol';
     this.stateTimer = 0;
+    this.sightKillTimer = 0;
     this.currentWaypointIndex = 0;
     this.eyesLight.intensity = 2.0;
     this.isChantingDialogue = false;
