@@ -654,7 +654,7 @@ class SoundManager {
     }
 
     try {
-      this.songAudio = new Audio('/assets/aistudio/Count_the_Doors_e8e142b1.mp3');
+      this.songAudio = new Audio('./assets/aistudio/Count_the_Doors_e8e142b1.mp3');
       this.songAudio.loop = true;
       this.songAudio.volume = this.isMuted || !this.isSongEnabled
         ? 0
@@ -750,7 +750,7 @@ class SoundManager {
 
     try {
       if (!this.tatyaVoiceAudio) {
-        this.tatyaVoiceAudio = new Audio('/assets/aistudio/Untitled_c0ca65a3.mp3');
+        this.tatyaVoiceAudio = new Audio('./assets/aistudio/Untitled_c0ca65a3.mp3');
       }
       // Calculate spatial loudness (closer = louder, 0 distanceFactor = full 1.0)
       const volume = Math.max(0.15, Math.min(1.0, (1 - distanceFactor) * 1.2));

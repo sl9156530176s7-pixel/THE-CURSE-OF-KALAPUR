@@ -983,7 +983,7 @@ export function createTatyaDollFaceTexture(): THREE.CanvasTexture {
 export function createTatyaWallPhotoTexture(): THREE.Texture {
   const loader = new THREE.TextureLoader();
   const texture = loader.load(
-    '/assets/aistudio/image_476c18a2.png',
+    './assets/aistudio/image_476c18a2.png',
     (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.generateMipmaps = true;
