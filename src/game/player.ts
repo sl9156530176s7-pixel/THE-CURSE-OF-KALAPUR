@@ -116,6 +116,50 @@ export class PlayerController {
     gameState.onTouchFlashlight = () => {
       this.toggleFlashlight();
     };
+    gameState.onTouchUseBattery = () => {
+      this.reloadBattery();
+    };
+    gameState.onTouchThrowDecoy = () => {
+      this.throwDecoy();
+    };
+  }
+
+  public throwDecoy() {
+    if (gameState.isHiding !== null) {
+      gameState.showSubtitle('Step out of hiding before throwing a Decoy Lota!');
+      return;
+    }
+    if (gameState.decoys <= 0) {
+      gameState.showSubtitle('No Brass Decoy Lotas left! Search Foyer, Garage, or Secret Passage.');
+      return;
+    }
+    gameState.decoys -= 1;
+    this.camera.getWorldDirection(this.tmpLookDir);
+    const origin = this.camera.position;
+    window.dispatchEvent(
+      new CustomEvent('kalapur:throwDecoy', {
+        detail: {
+          origin: [origin.x + this.tmpLookDir.x * 0.4, origin.y - 0.1, origin.z + this.tmpLookDir.z * 0.4],
+          dir: [this.tmpLookDir.x, this.tmpLookDir.y, this.tmpLookDir.z],
+        },
+      })
+    );
+    gameState.showSubtitle(`Threw Brass Decoy Lota! (${gameState.decoys} left)`);
+    gameState.notify();
+  }
+
+  public reloadBattery() {
+    if (gameState.useSpareBattery()) {
+      this.flashlight.visible = true;
+      this.flashlightBulb.visible = true;
+      soundManager.playFlashlightClick(true);
+      soundManager.playItemPickup();
+      gameState.showSubtitle(`Battery replaced! (${gameState.batteries} spare remaining)`);
+    } else if (gameState.batteries <= 0) {
+      gameState.showSubtitle('No spare batteries left! Search drawers and tables.');
+    } else {
+      gameState.showSubtitle('Flashlight battery is already full.');
+    }
   }
 
   private setupListeners(domElement: HTMLElement) {
@@ -124,6 +168,17 @@ export class PlayerController {
 
       if (e.code === 'KeyF') {
         this.toggleFlashlight();
+      }
+      if (e.code === 'KeyR') {
+        this.reloadBattery();
+      }
+      if (e.code === 'KeyQ') {
+        this.throwDecoy();
+      }
+      if (e.code === 'Tab') {
+        e.preventDefault();
+        gameState.showBlueprintMap = !gameState.showBlueprintMap;
+        gameState.notify();
       }
       if (e.code === 'KeyC') {
         gameState.isCrouching = !gameState.isCrouching;
@@ -275,20 +330,33 @@ export class PlayerController {
       gameState.stamina = Math.min(100, gameState.stamina + delta * 12);
     }
 
-    // 5. Compute Move Direction (Keyboard + Touch Joystick)
+    // 5. Compute Move Direction (Keyboard + Touch Joystick with Deadzone & Precision Curve)
     const keyX = (this.keys['KeyD'] ? 1 : 0) - (this.keys['KeyA'] ? 1 : 0);
     const keyZ = (this.keys['KeyS'] ? 1 : 0) - (this.keys['KeyW'] ? 1 : 0);
-    const totalTouchMoveX = this.touchMove.x + gameState.touchMove.x;
-    const totalTouchMoveZ = this.touchMove.z + gameState.touchMove.z;
-    const moveX = keyX + totalTouchMoveX;
-    const moveZ = keyZ + totalTouchMoveZ;
-    const isMoving = Math.abs(moveX) > 0.05 || Math.abs(moveZ) > 0.05;
+    let rawTouchX = this.touchMove.x + gameState.touchMove.x;
+    let rawTouchZ = this.touchMove.z + gameState.touchMove.z;
+    const touchMag = Math.hypot(rawTouchX, rawTouchZ);
+    if (touchMag > 0.11) {
+      const scaledMag = Math.min(1, Math.pow((touchMag - 0.11) / 0.89, 1.15));
+      rawTouchX = (rawTouchX / touchMag) * scaledMag;
+      rawTouchZ = (rawTouchZ / touchMag) * scaledMag;
+    } else {
+      rawTouchX = 0;
+      rawTouchZ = 0;
+    }
+
+    const moveX = keyX + rawTouchX;
+    const moveZ = keyZ + rawTouchZ;
+    const inputLen = Math.hypot(moveX, moveZ);
+    const isMoving = inputLen > 0.05;
     this.isMoving = isMoving;
 
     let targetSpeed = this.walkSpeed;
     if (gameState.isSprinting) targetSpeed = this.sprintSpeed;
     if (gameState.isCrouching) targetSpeed = this.crouchSpeed;
 
+    // Preserve analog slow-walk speed on touch while normalizing max speed
+    const speedFactor = Math.min(1, inputLen);
     this.tmpMoveVec.set(moveX, 0, moveZ);
     if (this.tmpMoveVec.lengthSq() > 0) {
       this.tmpMoveVec.normalize();
@@ -296,8 +364,8 @@ export class PlayerController {
     }
 
     // Smooth velocity damping
-    const targetVelX = this.tmpMoveVec.x * targetSpeed;
-    const targetVelZ = this.tmpMoveVec.z * targetSpeed;
+    const targetVelX = this.tmpMoveVec.x * targetSpeed * speedFactor;
+    const targetVelZ = this.tmpMoveVec.z * targetSpeed * speedFactor;
     this.velocity.x = THREE.MathUtils.damp(this.velocity.x, targetVelX, 16, delta);
     this.velocity.z = THREE.MathUtils.damp(this.velocity.z, targetVelZ, 16, delta);
 
@@ -335,12 +403,19 @@ export class PlayerController {
     const targetEyeY = currentFloorBaseY + (gameState.isCrouching ? 0.9 : 1.6);
     this.position.y = THREE.MathUtils.damp(this.position.y, targetEyeY, 20, delta);
 
-    // 8. Head bobbing & footsteps
+    // Sync live checkpoint coordinates for Pause -> Save Checkpoint
+    gameState.checkpointPos[0] = this.position.x;
+    gameState.checkpointPos[1] = this.position.y;
+    gameState.checkpointPos[2] = this.position.z;
+    gameState.checkpointRot = this.yaw;
+
+    // 8. Head bobbing, idle breathing & footsteps
+    const nowSec = performance.now() * 0.001;
     if (isMoving) {
       const bobFreq = gameState.isSprinting ? 14 : gameState.isCrouching ? 7 : 10;
       this.headbobTimer += delta * bobFreq;
-      const bobY = Math.sin(this.headbobTimer) * (gameState.isSprinting ? 0.08 : 0.04);
-      const bobX = Math.cos(this.headbobTimer * 0.5) * 0.025;
+      const bobY = Math.sin(this.headbobTimer) * (gameState.isSprinting ? 0.075 : 0.038);
+      const bobX = Math.cos(this.headbobTimer * 0.5) * 0.022;
       this.camera.position.set(this.position.x + bobX, this.position.y + bobY, this.position.z);
 
       // Footstep audio trigger
@@ -351,8 +426,30 @@ export class PlayerController {
         soundManager.playFootstep(gameState.isSprinting, 0);
       }
     } else {
-      this.camera.position.copy(this.position);
+      const idleBreathY = Math.sin(nowSec * 1.8) * 0.012;
+      this.camera.position.set(this.position.x, this.position.y + idleBreathY, this.position.z);
     }
+
+    // Smooth Dynamic FOV (Sprint stretch, Crouch stealth focus, Chase adrenaline)
+    let targetFov = 75;
+    if (gameState.ghostState === 'chase') {
+      targetFov = gameState.isSprinting ? 83 : 78 + Math.sin(nowSec * 7) * 0.8;
+    } else if (gameState.isSprinting && isMoving) {
+      targetFov = 81;
+    } else if (gameState.isCrouching) {
+      targetFov = 70;
+    }
+    const nextFov = THREE.MathUtils.damp(this.camera.fov, targetFov, 9, delta);
+    if (Math.abs(nextFov - this.camera.fov) > 0.015) {
+      this.camera.fov = nextFov;
+      this.camera.updateProjectionMatrix();
+    }
+
+    // Handheld Flashlight Aim Sway (Physical inertia when moving & turning)
+    const swayX = Math.sin(nowSec * 2.1) * 0.08 - (this.targetYaw - this.yaw) * 1.4;
+    const swayY = Math.cos(nowSec * 3.2) * 0.05 + (this.targetPitch - this.pitch) * 1.1;
+    this.flashlightTarget.position.x = THREE.MathUtils.damp(this.flashlightTarget.position.x, swayX, 12, delta);
+    this.flashlightTarget.position.y = THREE.MathUtils.damp(this.flashlightTarget.position.y, swayY, 12, delta);
 
     // Apply Camera Rotations
     this.camera.rotation.set(0, 0, 0);
@@ -361,7 +458,7 @@ export class PlayerController {
 
     // Subtle held frame breathing sway
     if (this.heldFrameMesh.visible) {
-      const swayTime = performance.now() * 0.002;
+      const swayTime = nowSec * 2;
       this.heldFrameMesh.position.y = -0.28 + Math.sin(swayTime * 2) * 0.015;
       this.heldFrameMesh.rotation.z = 0.1 + Math.sin(swayTime) * 0.03;
     }
@@ -374,14 +471,14 @@ export class PlayerController {
     this.raycaster.setFromCamera(this.tmpScreenCenter, this.camera);
     this.camera.getWorldDirection(this.tmpLookDir);
     let closest: InteractiveObject | null = null;
-    let closestDist = 2.8; // interaction reach (meters)
+    let closestDist = 3.0; // interaction reach (meters)
 
     for (const item of interactives) {
       if (item.collected) continue;
       const dist = this.camera.position.distanceTo(item.position);
       if (dist < closestDist) {
         this.tmpToObj.copy(item.position).sub(this.camera.position).normalize();
-        if (this.tmpLookDir.dot(this.tmpToObj) > 0.7) {
+        if (this.tmpLookDir.dot(this.tmpToObj) > 0.66) {
           closestDist = dist;
           closest = item;
         }
@@ -443,6 +540,7 @@ export class PlayerController {
         soundManager.playLightSwitch(item.isOn);
         if (item.targetLight) {
           item.targetLight.visible = item.isOn;
+          item.targetLight.userData.switchedOff = !item.isOn;
         }
         item.prompt = item.isOn ? `Press E to turn off ${item.name}` : `Press E to turn on ${item.name}`;
         item.action?.();
@@ -606,56 +704,206 @@ export class PlayerController {
         break;
       }
 
-      case 'cellar_hatch': {
-        // Multi-stage Escape Route 2: Underground Storm Drainage Hatch (Storage Room)
-        // Stage 1: Pry rusted cross iron bars with Heavy Crowbar
-        if (!gameState.cellarBarsPried) {
-          if (gameState.hasCrowbar) {
-            gameState.cellarBarsPried = true;
-            item.action?.();
-            soundManager.playCrowbarPrySound();
-            gameState.showSubtitle('CRUNCH! You wedged the Crowbar and shattered the rusted crossbars!');
-            gameState.setObjective('The iron bars are pried! Now dispel the glowing Tantric Blood Seal with the Sacred Tantric Bell.');
+      case 'fuel_can': {
+        gameState.hasFuelCan = true;
+        item.collected = true;
+        item.action?.();
+        soundManager.playItemPickup();
+        gameState.setObjective('Pour Petrol into the 1954 Escape Car inside the East Courtyard Garage!');
+        gameState.showSubtitle('Acquired Fuel Jerrycan! Head to the East Garage via Courtyard or Puja side door.');
+        gameState.notify();
+        break;
+      }
+
+      case 'car_battery': {
+        gameState.hasCarBattery = true;
+        item.collected = true;
+        item.action?.();
+        soundManager.playItemPickup();
+        gameState.setObjective('Install the Car Battery under the hood of the 1954 Sedan in the East Garage!');
+        gameState.showSubtitle('Acquired 12V Car Battery! Install it in the 1954 Garage Sedan.');
+        gameState.notify();
+        break;
+      }
+
+      case 'car_key': {
+        gameState.hasCarKey = true;
+        item.collected = true;
+        item.action?.();
+        soundManager.playItemPickup();
+        gameState.setObjective('Start the fueled & powered 1954 Sedan in the East Garage to drive out!');
+        gameState.showSubtitle('Acquired Car Ignition Key! Now start the 1954 Vintage Sedan in the East Garage!');
+        gameState.notify();
+        break;
+      }
+
+      case 'oars': {
+        gameState.hasBoatOars = true;
+        item.collected = true;
+        item.action?.();
+        soundManager.playItemPickup();
+        gameState.setObjective('Descend to the Underground River Crypt Boat Dock beneath Storage Wing!');
+        gameState.showSubtitle('Acquired Wooden Boat Oars! Break the Crypt floodgate bars & seal to row to freedom!');
+        gameState.notify();
+        break;
+      }
+
+      case 'decoy_pickup': {
+        if (gameState.decoys >= gameState.maxDecoys) {
+          gameState.showSubtitle('Decoy Lota pouch is already full!');
+          return;
+        }
+        gameState.decoys = Math.min(gameState.maxDecoys, gameState.decoys + 1);
+        item.collected = true;
+        item.action?.();
+        soundManager.playItemPickup();
+        gameState.showSubtitle(`Picked up Brass Decoy Lota! Press [Q] or LURE to distract Tatya. (${gameState.decoys}/${gameState.maxDecoys})`);
+        gameState.notify();
+        break;
+      }
+
+      case 'secret_bookcase': {
+        item.isOpen = !item.isOpen;
+        gameState.secretPassageOpen = item.isOpen;
+        item.mesh.rotation.y = item.isOpen ? Math.PI / 2 : 0;
+        soundManager.playSecretPassageGrind();
+        item.prompt = item.isOpen ? 'Close Revolving Bookshelf [E]' : 'Pull Suspicious Book [E]';
+        gameState.showSubtitle(
+          item.isOpen
+            ? 'RUMBLE... The antique bookshelf swings open, revealing the Secret Archive shortcut to Mystic Sanctum!'
+            : 'The revolving bookshelf latches shut.'
+        );
+        gameState.notify();
+        break;
+      }
+
+      case 'breaker_box': {
+        if (!gameState.breakerPowerOn) {
+          gameState.breakerPowerOn = true;
+          soundManager.playBreakerRestore();
+          gameState.showSubtitle('CLACK! Main Breaker restored! The haveli lanterns flare back to life!');
+        } else {
+          soundManager.playLightSwitch(true);
+          gameState.showSubtitle('Main Power Breaker is ON and energized.');
+        }
+        gameState.notify();
+        break;
+      }
+
+      case 'mirror_spook': {
+        soundManager.playWhisper();
+        soundManager.playTantricWhisper(0);
+        gameState.screenGlitchIntensity = 0.65;
+        gameState.showSubtitle('Your reflection freezes and grins back... Tatya Vinchu watches through the silver glass!', 3600);
+        window.setTimeout(() => {
+          if (gameState.ghostState !== 'chase') {
+            gameState.screenGlitchIntensity = 0;
+          }
+        }, 500);
+        gameState.notify();
+        break;
+      }
+
+      case 'escape_car': {
+        if (!gameState.carFueled) {
+          if (gameState.hasFuelCan) {
+            gameState.carFueled = true;
+            soundManager.playValveTurnSound();
+            gameState.showSubtitle('GLUG... Petrol poured into the 1954 Sedan! Now wire the Car Battery & turn Ignition Key.');
+            gameState.setObjective('1954 Sedan fueled! Install Car Battery and turn Ignition Key in East Garage.');
             gameState.notify();
           } else {
-            gameState.showSubtitle('The Underground Hatch is held tight by rusted iron bars! You need the Heavy Steel Crowbar.');
+            gameState.showSubtitle('The 1954 Sedan fuel tank is bone dry! Find the Fuel Jerrycan hidden inside the haveli drawers.');
             soundManager.playCreepyThud(0.4);
           }
           return;
         }
 
-        // Stage 2: Dispel glowing Tantric Blood Seal with Sacred Bell (Ghanta)
+        if (!gameState.carBatteryInstalled) {
+          if (gameState.hasCarBattery) {
+            gameState.carBatteryInstalled = true;
+            soundManager.playBreakerRestore();
+            gameState.showSubtitle('SNAP! 12V Battery wired — twin headlights blaze through the garage mist! Turn the Ignition Key!');
+            gameState.setObjective('Headlights blazing! Use the Car Ignition Key to smash out of Kalapur Garage!');
+            gameState.notify();
+          } else {
+            gameState.showSubtitle('No electrical spark! Find and install the 12V Car Battery first.');
+            soundManager.playCreepyThud(0.4);
+          }
+          return;
+        }
+
+        if (!gameState.hasCarKey) {
+          gameState.showSubtitle('Dashboard lights are glowing, but the Car Ignition Key is missing! Search drawers!');
+          soundManager.playCreepyThud(0.4);
+          return;
+        }
+
+        gameState.carStarted = true;
+        gameState.escapeRouteTaken = 'car';
+        gameState.isVictory = true;
+        gameState.escapeTimeSeconds = Math.round((Date.now() - gameState.gameStartTime) / 1000);
+        soundManager.playCarIgnitionRoar();
+        setTimeout(() => soundManager.playVictoryCelebration(), 700);
+        gameState.showSubtitle('VROOOOM! The 1954 Sedan smashes through the garage shutter into the storm! YOU ESCAPED!');
+        window.dispatchEvent(new CustomEvent('kalapur:escaped'));
+        gameState.notify();
+        break;
+      }
+
+      case 'escape_boat': {
+        // Multi-stage Escape Route 2: Underground River Crypt Boat Dock (Y = -3.0)
+        if (!gameState.cellarBarsPried) {
+          if (gameState.hasCrowbar) {
+            gameState.cellarBarsPried = true;
+            item.action?.();
+            soundManager.playCrowbarPrySound();
+            gameState.showSubtitle('CRUNCH! You pried open the rusted floodgate iron bars with the Heavy Crowbar!');
+            gameState.setObjective('Floodgate bars removed! Dispel the Crimson Blood Seal with the Sacred Tantric Bell.');
+            gameState.notify();
+          } else {
+            gameState.showSubtitle('Rusted iron floodgate bars block the river boat! Find the Heavy Steel Crowbar in drawers.');
+            soundManager.playCreepyThud(0.4);
+          }
+          return;
+        }
+
         if (!gameState.cellarSealBroken) {
           if (gameState.hasTantricBell) {
             gameState.cellarSealBroken = true;
             item.action?.();
             soundManager.playTantricSealBreak();
-            gameState.showSubtitle('SHINGG! The Sacred Tantric Bell resonates! Tatya\'s demonic blood seal shatters into blue mist!');
-            gameState.setObjective('The demonic curse is broken! Turn the Bronze Floodgate Sluice Valve to escape under the river!');
+            gameState.showSubtitle('SHINGG! The Sacred Tantric Bell shatters Tatya\'s river blood ward! Now row out with Boat Oars!');
+            gameState.setObjective('Canal ward broken! Use the Wooden Boat Oars (Secret Archive) to row down the underground river!');
             gameState.notify();
           } else {
-            gameState.showSubtitle('A glowing red Tantric Blood Seal curses this hatch: "ॐ फट् स्वाहा"! Ring the Sacred Tantric Bell to dispel it.');
+            gameState.showSubtitle('A glowing Tantric Blood Seal blocks the canal arch! Ring the Sacred Tantric Bell to shatter it.');
             soundManager.playTantricWhisper();
           }
           return;
         }
 
-        // Stage 3: Turn Bronze Floodgate Sluice Valve and Escape!
+        if (!gameState.hasBoatOars) {
+          gameState.showSubtitle('The boat is unsealed, but has no paddles! Find Wooden Boat Oars inside the Secret Library Archive.');
+          soundManager.playCreepyThud(0.4);
+          return;
+        }
+
         gameState.cellarValveTurned = true;
         gameState.cellarUnlocked = true;
         gameState.escapeRouteTaken = 'cellar';
         gameState.isVictory = true;
         gameState.escapeTimeSeconds = Math.round((Date.now() - gameState.gameStartTime) / 1000);
-        soundManager.playValveTurnSound();
-        setTimeout(() => soundManager.playVictoryCelebration(), 500);
-        gameState.showSubtitle('CREAK... The subterranean floodgate opens! YOU ESCAPED THROUGH THE KALAPUR CATACOMBS!');
+        soundManager.playBoatOarSplash();
+        setTimeout(() => soundManager.playVictoryCelebration(), 600);
+        gameState.showSubtitle('SPLASH... You row silently down the underground Kalapur river into the storm! YOU ESCAPED!');
         window.dispatchEvent(new CustomEvent('kalapur:escaped'));
         gameState.notify();
         break;
       }
 
       case 'exit_gate': {
-        // Multi-stage Hard Escape Gate Logic
+        // Multi-stage Escape Route 1: Front Courtyard Iron Gate
         if (!gameState.exitUnlocked) {
           gameState.showSubtitle('The mansion exit is sealed! You must unlock the Grand Exit Door with the Ancestor Photo Frame first.');
           soundManager.playCreepyThud(0.5);
@@ -718,12 +966,19 @@ export class PlayerController {
     this.targetYaw = rotY;
     this.pitch = 0;
     this.targetPitch = 0;
+    this.camera.rotation.set(0, rotY, 0, 'YXZ');
+    this.camera.fov = 75;
+    this.camera.updateProjectionMatrix();
+    this.flashlight.visible = gameState.flashlightOn && gameState.flashlightBattery > 0;
+    this.flashlightBulb.visible = this.flashlight.visible;
     gameState.isHiding = null;
     gameState.currentHidingId = null;
     gameState.isCrouching = false;
     gameState.isSprinting = false;
     gameState.touchSprint = false;
     gameState.stamina = 100;
+    gameState.checkpointPos = [pos[0], pos[1], pos[2]];
+    gameState.checkpointRot = rotY;
     gameState.notify();
   }
 }

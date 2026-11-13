@@ -12,7 +12,11 @@ interface CinematicEndingProps {
 
 export const CinematicEnding: React.FC<CinematicEndingProps> = ({ onRestart, onMainMenu }) => {
   const [phase, setPhase] = useState<number>(1);
-  const isCellarEscape = gameState.escapeRouteTaken === 'cellar';
+  const route = gameState.escapeRouteTaken || 'gate';
+  const isCellarEscape = route === 'cellar';
+  const isCarEscape = route === 'car';
+  const mins = Math.floor((gameState.escapeTimeSeconds || 0) / 60);
+  const secs = (gameState.escapeTimeSeconds || 0) % 60;
 
   useEffect(() => {
     soundManager.setMusicMood('victory');
@@ -38,6 +42,24 @@ export const CinematicEnding: React.FC<CinematicEndingProps> = ({ onRestart, onM
     };
   }, []);
 
+  const routeBadge = isCarEscape
+    ? 'ESCAPED VIA 1954 VINTAGE SEDAN'
+    : isCellarEscape
+    ? 'SURVIVED VIA UNDERGROUND RIVER CRYPT'
+    : 'SURVIVED KALAPUR HOUSE';
+
+  const routeTitle = isCarEscape
+    ? 'GARAGE BREAKOUT!'
+    : isCellarEscape
+    ? 'RIVER CRYPT ESCAPE!'
+    : 'YOU ESCAPED...';
+
+  const routeStory = isCarEscape
+    ? 'You fueled the bone-dry tank, sparked the 12V twin headlights, and twisted the brass ignition key! Smashing straight through the locked garage shutter in the roaring 1954 Sedan, you raced into the lightning storm while Tatya screamed behind you.'
+    : isCellarEscape
+    ? 'You pried open the rusted floodgate iron bars, shattered Tatya’s crimson river ward with the Sacred Tantric Bell, and rowed silently down the subterranean black river out into the stormy valley to freedom!'
+    : 'You mounted the cursed ancestor portrait, cut through the iron chains, unlocked the heavy padlock, and burst through the fortified front gate into the pouring monsoon night!';
+
   return (
     <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center p-6 text-center select-none overflow-hidden font-serif">
       <AnimatePresence mode="wait">
@@ -52,19 +74,24 @@ export const CinematicEnding: React.FC<CinematicEndingProps> = ({ onRestart, onM
             className="max-w-2xl space-y-4"
           >
             <span className="text-red-500 font-mono text-xs uppercase tracking-[0.3em] font-bold">
-              {isCellarEscape ? 'SURVIVED VIA UNDERGROUND CATACOMBS' : 'SURVIVED KALAPUR HOUSE'}
+              {routeBadge}
             </span>
             <h2
               className="text-3xl md:text-5xl font-black text-stone-100 tracking-wider"
               style={{ fontFamily: 'Cinzel, serif' }}
             >
-              {isCellarEscape ? 'CATACOMB ESCAPE!' : 'YOU ESCAPED...'}
+              {routeTitle}
             </h2>
             <p className="text-stone-400 text-sm md:text-base font-light italic leading-relaxed">
-              {isCellarEscape
-                ? 'You pried the iron bars, banished the blood curse with the sacred bell, and turned the bronze floodgate valve! Crawling through the storm catacombs under the river, you broke out into the stormy riverbanks to freedom!'
-                : 'You burst through the fortified iron gate into the pouring monsoon night. Behind you, Kalapur House stands silent in the rain. The mansion was unsealed, and you survived.'}
+              {routeStory}
             </p>
+            <div className="pt-2 flex justify-center gap-4 text-[11px] font-mono text-amber-300/90 uppercase">
+              <span>Day {gameState.currentDay}/4</span>
+              <span>•</span>
+              <span>Time: {mins}m {secs.toString().padStart(2, '0')}s</span>
+              <span>•</span>
+              <span>{gameState.settings.difficulty}</span>
+            </div>
           </motion.div>
         )}
 
@@ -112,6 +139,12 @@ export const CinematicEnding: React.FC<CinematicEndingProps> = ({ onRestart, onM
             >
               THE CURSE OF KALAPUR
             </h1>
+
+            <div className="flex flex-wrap justify-center gap-3 text-xs font-mono text-amber-300 uppercase tracking-widest">
+              <span className="px-3 py-1 bg-stone-900/90 border border-stone-700 rounded">Route: {routeBadge}</span>
+              <span className="px-3 py-1 bg-stone-900/90 border border-stone-700 rounded">Time: {mins}m {secs.toString().padStart(2, '0')}s</span>
+              <span className="px-3 py-1 bg-stone-900/90 border border-stone-700 rounded">Day {gameState.currentDay}/4</span>
+            </div>
 
             <div className="space-y-2 py-4 border-y border-stone-800/80">
               <p className="text-xs tracking-[0.3em] uppercase text-stone-400 font-sans">

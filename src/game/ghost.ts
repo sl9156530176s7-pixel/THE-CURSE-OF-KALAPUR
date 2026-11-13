@@ -53,6 +53,19 @@ export class KalapurGhost {
   private tatyaBlade: THREE.Group;
   private lastSpottedDialogueTime = 0;
   private isChantingDialogue = false;
+  private breakerSabotageTimer = 60;
+
+  // Reusable zero-GC scratch helpers
+  private tmpGhostDir = new THREE.Vector3();
+  private tmpToPlayer = new THREE.Vector3();
+  private tmpRayOrigin = new THREE.Vector3();
+  private tmpRay = new THREE.Ray();
+  private tmpRayHit = new THREE.Vector3();
+  private tmpMoveDir = new THREE.Vector3();
+  private tmpBoxX = new THREE.Box3();
+  private tmpBoxZ = new THREE.Box3();
+  private tmpBoxMin = new THREE.Vector3();
+  private tmpBoxMax = new THREE.Vector3();
 
   constructor(waypoints: THREE.Vector3[]) {
     this.waypoints = waypoints;
@@ -549,6 +562,27 @@ export class KalapurGhost {
     this.floatOffset += delta * 2.5;
 
     const isTatya = gameState.settings.villainType === 'tatya';
+    const diff = gameState.settings.difficulty || 'normal';
+    const speedMult = diff === 'hardcore' ? 1.28 : diff === 'nightmare' ? 1.15 : 1.0;
+    const hearingMult = diff === 'hardcore' ? 1.35 : diff === 'nightmare' ? 1.18 : 1.0;
+    const sightKillThreshold = diff === 'hardcore' ? 0.68 : diff === 'nightmare' ? 0.85 : 1.05;
+
+    // Villain Breaker Sabotage: cuts power to plunge haveli into darkness periodically
+    if (gameState.breakerPowerOn && this.state !== 'chase' && this.position.y >= -0.6) {
+      this.breakerSabotageTimer -= delta * (diff === 'hardcore' ? 1.5 : diff === 'nightmare' ? 1.2 : 1.0);
+      if (this.breakerSabotageTimer <= 0) {
+        this.breakerSabotageTimer = diff === 'hardcore' ? 45 + Math.random() * 25 : 65 + Math.random() * 35;
+        gameState.breakerPowerOn = false;
+        soundManager.playBreakerOutage();
+        gameState.showSubtitle(
+          isTatya
+            ? "POWER CUT! Tatya Vinchu tripped the Main Breaker in the Grand Foyer!"
+            : "POWER CUT! Spectral surge blew the Main Breaker in the Grand Foyer!",
+          4800
+        );
+        gameState.notify();
+      }
+    }
 
     // 0. Door Bursting: Villain bashes through any closed interior doors in their path!
     if (interactives) {
@@ -589,6 +623,9 @@ export class KalapurGhost {
 
       // Creepy puppet head twitching & tilt
       this.tatyaHead.rotation.z = Math.sin(walkCycle * 0.5) * 0.12;
+      if (this.state === 'chase' || (this.state === 'patrol' && this.currentSpeed > 0)) {
+        this.tatyaHead.rotation.y = THREE.MathUtils.damp(this.tatyaHead.rotation.y, 0, 10, delta);
+      }
 
       // ARTICULATED VENTRILOQUIST JAW: opens & drops rapidly while chanting dialogue or chasing!
       if (this.isChantingDialogue || this.state === 'chase') {
@@ -641,9 +678,9 @@ export class KalapurGhost {
     let noiseRadius = 0;
     if (!isPlayerHiding) {
       if (isPlayerSprinting && isPlayerMoving) {
-        noiseRadius = 10.0; // Loud sprint footsteps heard within 10m
+        noiseRadius = 10.0 * hearingMult; // Loud sprint footsteps
       } else if (isPlayerMoving && !isPlayerCrouching) {
-        noiseRadius = 3.5; // Normal walk footsteps heard only within 3.5m
+        noiseRadius = 3.5 * hearingMult; // Normal walk footsteps
       }
       // Crouching (C) or standing still generates 0 noise!
     }
@@ -656,7 +693,7 @@ export class KalapurGhost {
     // --- State Machine ---
     switch (this.state) {
       case 'patrol': {
-        this.currentSpeed = this.patrolSpeed;
+        this.currentSpeed = this.patrolSpeed * speedMult;
         gameState.ghostState = 'patrol';
         gameState.ghostAlertLevel = Math.max(0, gameState.ghostAlertLevel - delta * 0.3);
 
@@ -691,14 +728,14 @@ export class KalapurGhost {
             this.selectNextWaypoint();
           }
         } else {
-          this.currentSpeed = this.patrolSpeed;
+          this.currentSpeed = this.patrolSpeed * speedMult;
           this.moveToward(this.targetPosition, delta, colliders);
         }
         break;
       }
 
       case 'investigate': {
-        this.currentSpeed = this.patrolSpeed * 1.1;
+        this.currentSpeed = this.patrolSpeed * 1.1 * speedMult;
         gameState.ghostState = 'investigate';
         gameState.ghostAlertLevel = 0.5;
 
@@ -715,7 +752,7 @@ export class KalapurGhost {
 
         this.moveToward(this.targetPosition, delta, colliders);
 
-        if (this.position.distanceTo(this.targetPosition) < 1.4 || this.stateTimer > 6.0) {
+        if (this.position.distanceTo(this.targetPosition) < 1.4 || this.stateTimer > 6.5) {
           this.state = 'search';
           this.stateTimer = 0;
         }
@@ -723,7 +760,7 @@ export class KalapurGhost {
       }
 
       case 'search': {
-        this.currentSpeed = this.patrolSpeed * 0.35;
+        this.currentSpeed = this.patrolSpeed * 0.35 * speedMult;
         gameState.ghostState = 'search';
         gameState.ghostAlertLevel = 0.4;
 
@@ -770,18 +807,17 @@ export class KalapurGhost {
           this.lastKnownPlayerPos.copy(playerPos);
           this.stateTimer = 0; // reset chase memory timer
           this.sightKillTimer += delta;
-          this.currentSpeed = 5.6; // supernatural puppet surge
+          this.currentSpeed = 5.5 * speedMult; // supernatural puppet surge
         } else {
           this.sightKillTimer = Math.max(0, this.sightKillTimer - delta * 2.0);
-          this.currentSpeed = this.chaseSpeed;
+          this.currentSpeed = this.chaseSpeed * speedMult;
         }
 
         // Move directly toward player / last known position
         this.moveToward(this.lastKnownPlayerPos, delta, colliders);
 
         // TATYA SIGHT-KILL / PROXIMITY STRIKE:
-        // If player remains in direct line of sight for 1.05s OR comes within 2.2m:
-        if ((this.sightKillTimer >= 1.05 && this.hasDirectVision) || (distToPlayer < 2.2 && !isPlayerHiding)) {
+        if ((this.sightKillTimer >= sightKillThreshold && this.hasDirectVision) || (distToPlayer < 2.2 && !isPlayerHiding)) {
           this.sightKillTimer = 0;
           onCatchPlayer();
           return;
@@ -839,24 +875,21 @@ export class KalapurGhost {
 
     if (dist > maxVisionDist) return false;
 
-    // Check angle between ghost facing direction and player
-    const ghostDir = new THREE.Vector3();
-    this.mesh.getWorldDirection(ghostDir);
+    // Check angle between ghost facing direction and player (zero-GC)
+    this.mesh.getWorldDirection(this.tmpGhostDir);
 
-    const toPlayer = playerPos.clone().sub(this.position).normalize();
-    const dot = ghostDir.dot(toPlayer);
+    this.tmpToPlayer.copy(playerPos).sub(this.position).normalize();
+    const dot = this.tmpGhostDir.dot(this.tmpToPlayer);
 
     // Realistic frontal sight cone (~70 degrees, cannot see behind its back!)
     if (dot < 0.35) return false;
 
-    // Raycast through colliders to check for wall blockage
-    const ray = new THREE.Ray(
-      new THREE.Vector3(this.position.x, this.position.y + 1.8, this.position.z),
-      toPlayer
-    );
+    // Raycast through colliders to check for wall blockage (eye height works in 2.7m Crypt too)
+    this.tmpRayOrigin.set(this.position.x, this.position.y + 1.5, this.position.z);
+    this.tmpRay.set(this.tmpRayOrigin, this.tmpToPlayer);
 
     for (const box of colliders) {
-      const intersect = ray.intersectBox(box, new THREE.Vector3());
+      const intersect = this.tmpRay.intersectBox(box, this.tmpRayHit);
       if (intersect) {
         const distToBox = this.position.distanceTo(intersect);
         if (distToBox < dist - 0.5) {
@@ -897,33 +930,35 @@ export class KalapurGhost {
   }
 
   private moveToward(target: THREE.Vector3, delta: number, colliders?: THREE.Box3[]) {
-    const dir = target.clone().sub(this.position);
-    dir.y = 0; // maintain horizontal movement
-    const dist = dir.length();
+    this.tmpMoveDir.copy(target).sub(this.position);
+    this.tmpMoveDir.y = 0; // maintain horizontal movement
+    const dist = this.tmpMoveDir.length();
     if (dist < 0.05) return;
 
-    dir.normalize();
+    this.tmpMoveDir.normalize();
 
-    // Rotate villain smoothly toward movement direction
-    const targetAngle = Math.atan2(dir.x, dir.z);
-    this.mesh.rotation.y = THREE.MathUtils.damp(this.mesh.rotation.y, targetAngle, 8, delta);
+    // Shortest-path smooth rotation toward movement direction (no 360 wrap snap)
+    const targetAngle = Math.atan2(this.tmpMoveDir.x, this.tmpMoveDir.z);
+    let angleDiff = targetAngle - this.mesh.rotation.y;
+    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+    this.mesh.rotation.y += angleDiff * (1 - Math.exp(-8 * delta));
 
-    const stepX = dir.x * this.currentSpeed * delta;
-    const stepZ = dir.z * this.currentSpeed * delta;
+    const stepX = this.tmpMoveDir.x * this.currentSpeed * delta;
+    const stepZ = this.tmpMoveDir.z * this.currentSpeed * delta;
     const nextX = this.position.x + stepX;
     const nextZ = this.position.z + stepZ;
 
     // Obstacle & Wall Collision Sliding: Test X and Z independently so villain slides smoothly around obstacles
     if (colliders && colliders.length > 0) {
       const villainRadius = 0.35;
-      const boxX = new THREE.Box3(
-        new THREE.Vector3(nextX - villainRadius, this.position.y + 0.1, this.position.z - villainRadius),
-        new THREE.Vector3(nextX + villainRadius, this.position.y + 1.8, this.position.z + villainRadius)
-      );
-      const boxZ = new THREE.Box3(
-        new THREE.Vector3(this.position.x - villainRadius, this.position.y + 0.1, nextZ - villainRadius),
-        new THREE.Vector3(this.position.x + villainRadius, this.position.y + 1.8, nextZ + villainRadius)
-      );
+      this.tmpBoxMin.set(nextX - villainRadius, this.position.y + 0.1, this.position.z - villainRadius);
+      this.tmpBoxMax.set(nextX + villainRadius, this.position.y + 1.8, this.position.z + villainRadius);
+      this.tmpBoxX.set(this.tmpBoxMin, this.tmpBoxMax);
+
+      this.tmpBoxMin.set(this.position.x - villainRadius, this.position.y + 0.1, nextZ - villainRadius);
+      this.tmpBoxMax.set(this.position.x + villainRadius, this.position.y + 1.8, nextZ + villainRadius);
+      this.tmpBoxZ.set(this.tmpBoxMin, this.tmpBoxMax);
 
       let collideX = false;
       let collideZ = false;
@@ -933,8 +968,8 @@ export class KalapurGhost {
         if (box.max.y < this.position.y || box.min.y > this.position.y + 2.0) {
           continue;
         }
-        if (box.intersectsBox(boxX)) collideX = true;
-        if (box.intersectsBox(boxZ)) collideZ = true;
+        if (box.intersectsBox(this.tmpBoxX)) collideX = true;
+        if (box.intersectsBox(this.tmpBoxZ)) collideZ = true;
       }
 
       if (!collideX) this.position.x = nextX;
@@ -960,12 +995,19 @@ export class KalapurGhost {
     if (this.waypoints.length > 0) {
       this.position.copy(this.waypoints[0]);
       this.mesh.position.copy(this.position);
+      this.targetPosition.copy(this.waypoints[1] || this.waypoints[0]);
     }
+    this.mesh.rotation.y = 0;
+    this.tatyaHead.rotation.set(0, 0, 0);
+    this.headMesh.rotation.set(0, 0, 0);
     this.state = 'patrol';
     this.stateTimer = 0;
     this.sightKillTimer = 0;
+    this.hasDirectVision = false;
     this.currentWaypointIndex = 0;
     this.eyesLight.intensity = 2.0;
     this.isChantingDialogue = false;
+    this.lastSpottedDialogueTime = 0;
+    this.breakerSabotageTimer = 55 + Math.random() * 35;
   }
 }

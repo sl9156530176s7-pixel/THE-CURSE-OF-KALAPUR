@@ -1392,6 +1392,143 @@ class SoundManager {
     }, 180);
   }
 
+  // Brass Decoy Lota / Bell impact clang to lure Tatya/Ghost
+  public playDecoyThrowClang() {
+    if (!this.ctx || !this.sfxGain) return;
+    const now = this.ctx.currentTime;
+    [980, 1460, 2180, 2940].forEach((freq, i) => {
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+      osc.type = i % 2 === 0 ? 'triangle' : 'sine';
+      osc.frequency.setValueAtTime(freq, now);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.92, now + 0.85);
+      gain.gain.setValueAtTime(0.28 / (i + 1), now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.95);
+      osc.connect(gain);
+      gain.connect(this.sfxGain!);
+      osc.start(now);
+      osc.stop(now + 1.0);
+    });
+    this.playCreepyThud(0.35);
+  }
+
+  // Power Outage Breaker Trip (Electrical buzz down + sub hum drop)
+  public playBreakerOutage() {
+    if (!this.ctx || !this.sfxGain) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(160, now);
+    osc.frequency.exponentialRampToValueAtTime(28, now + 0.9);
+    gain.gain.setValueAtTime(0.45, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 1.0);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(now);
+    osc.stop(now + 1.05);
+    this.playLightSwitch(false);
+  }
+
+  // Breaker Restored Clunk + Electrical Surge Hum
+  public playBreakerRestore() {
+    if (!this.ctx || !this.sfxGain) return;
+    const now = this.ctx.currentTime;
+    this.playHeavyLockUnlock();
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(55, now + 0.05);
+    osc.frequency.exponentialRampToValueAtTime(120, now + 0.45);
+    gain.gain.setValueAtTime(0.01, now + 0.05);
+    gain.gain.linearRampToValueAtTime(0.3, now + 0.15);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(now + 0.05);
+    osc.stop(now + 0.65);
+  }
+
+  // 1954 Sedan Engine Crank & Roar
+  public playCarIgnitionRoar() {
+    if (!this.ctx || !this.sfxGain) return;
+    const now = this.ctx.currentTime;
+    // Starter cranking pulses
+    for (let i = 0; i < 3; i++) {
+      const crank = this.ctx.createOscillator();
+      const cGain = this.ctx.createGain();
+      crank.type = 'sawtooth';
+      const t = now + i * 0.22;
+      crank.frequency.setValueAtTime(85, t);
+      crank.frequency.linearRampToValueAtTime(135, t + 0.15);
+      cGain.gain.setValueAtTime(0.25, t);
+      cGain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+      crank.connect(cGain);
+      cGain.connect(this.sfxGain);
+      crank.start(t);
+      crank.stop(t + 0.21);
+    }
+    // Engine roar catch
+    const roar = this.ctx.createOscillator();
+    const rFilter = this.ctx.createBiquadFilter();
+    const rGain = this.ctx.createGain();
+    roar.type = 'sawtooth';
+    roar.frequency.setValueAtTime(62, now + 0.66);
+    roar.frequency.linearRampToValueAtTime(145, now + 1.3);
+    roar.frequency.linearRampToValueAtTime(95, now + 2.2);
+    rFilter.type = 'lowpass';
+    rFilter.frequency.setValueAtTime(420, now + 0.66);
+    rGain.gain.setValueAtTime(0.01, now + 0.66);
+    rGain.gain.linearRampToValueAtTime(0.5, now + 0.85);
+    rGain.gain.exponentialRampToValueAtTime(0.001, now + 2.3);
+    roar.connect(rFilter);
+    rFilter.connect(rGain);
+    rGain.connect(this.sfxGain);
+    roar.start(now + 0.66);
+    roar.stop(now + 2.4);
+  }
+
+  // Subterranean Boat Oar Water Splash
+  public playBoatOarSplash() {
+    if (!this.ctx || !this.sfxGain) return;
+    const now = this.ctx.currentTime;
+    const noiseBuffer = this.createNoiseBuffer();
+    if (!noiseBuffer) return;
+    const src = this.ctx.createBufferSource();
+    src.buffer = noiseBuffer;
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(950, now);
+    filter.frequency.exponentialRampToValueAtTime(320, now + 0.7);
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.01, now);
+    gain.gain.linearRampToValueAtTime(0.45, now + 0.12);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.sfxGain);
+    src.start(now);
+    src.stop(now + 0.9);
+  }
+
+  // Secret Bookshelf Stone Grind
+  public playSecretPassageGrind() {
+    if (!this.ctx || !this.sfxGain) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(64, now);
+    osc.frequency.linearRampToValueAtTime(48, now + 1.1);
+    gain.gain.setValueAtTime(0.35, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(now);
+    osc.stop(now + 1.25);
+    this.playNoiseSwoosh(1.0, 0.25);
+  }
+
   public dispose() {
     this.stopDrone();
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);

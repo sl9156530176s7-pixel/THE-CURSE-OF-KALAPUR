@@ -169,6 +169,29 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({ onResume, onSave, onMainMe
                 </button>
               </div>
 
+              {/* Difficulty Selector */}
+              <div className="flex justify-between items-center pt-2 border-t border-stone-800 gap-2">
+                <div className="flex flex-col text-left">
+                  <span className="font-semibold text-stone-300">Difficulty</span>
+                  <span className="text-[10px] text-stone-500">Speed, sight &amp; outage rate</span>
+                </div>
+                <div className="flex gap-1.5">
+                  {(['normal', 'nightmare', 'hardcore'] as const).map((lvl) => (
+                    <button
+                      key={lvl}
+                      onClick={() => handleSettingChange('difficulty', lvl)}
+                      className={`px-2 py-1 rounded border cursor-pointer font-bold uppercase text-[10px] ${
+                        settings.difficulty === lvl
+                          ? 'bg-red-900 border-red-500 text-white'
+                          : 'bg-stone-900 border-stone-800 text-stone-400'
+                      }`}
+                    >
+                      {lvl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Villain Selector */}
               <div className="flex justify-between items-center pt-2 border-t border-stone-800">
                 <span className="font-semibold text-stone-300">Active Villain</span>
@@ -219,10 +242,13 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({ onResume, onSave, onMainMe
             <div className="space-y-2 bg-stone-900/50 p-4 rounded border border-stone-800">
               <div className="flex justify-between"><span className="text-stone-400">WASD</span><span>Move</span></div>
               <div className="flex justify-between"><span className="text-stone-400">Mouse</span><span>Look Around</span></div>
-              <div className="flex justify-between"><span className="text-stone-400">E</span><span>Interact / Hide / Take / Place</span></div>
+              <div className="flex justify-between"><span className="text-stone-400">E</span><span>Interact / Hide / Secret Shelf / Breaker</span></div>
+              <div className="flex justify-between"><span className="text-stone-400">Q</span><span>Throw Brass Decoy Lota (Lure Villain)</span></div>
+              <div className="flex justify-between"><span className="text-stone-400">Tab</span><span>Floor Blueprint Map &amp; 3 Escapes</span></div>
               <div className="flex justify-between"><span className="text-stone-400">Shift</span><span>Sprint (Drains Stamina)</span></div>
               <div className="flex justify-between"><span className="text-stone-400">C</span><span>Crouch (Quiet)</span></div>
               <div className="flex justify-between"><span className="text-stone-400">F / Right-Click</span><span>Toggle Flashlight</span></div>
+              <div className="flex justify-between"><span className="text-stone-400">R</span><span>Use Spare Battery</span></div>
               <div className="flex justify-between"><span className="text-stone-400">M</span><span>Toggle Horror Song (On/Off)</span></div>
               <div className="flex justify-between"><span className="text-stone-400">Esc</span><span>Pause</span></div>
             </div>

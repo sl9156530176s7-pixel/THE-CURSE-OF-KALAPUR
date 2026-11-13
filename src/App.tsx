@@ -13,6 +13,8 @@ type GameMode = 'intro' | 'menu' | 'playing' | 'paused' | 'ending';
 
 export default function App() {
   const [mode, setMode] = useState<GameMode>('intro');
+  const [sessionKey, setSessionKey] = useState(0);
+  const [isContinueSession, setIsContinueSession] = useState(false);
   const [currentInteractive, setCurrentInteractive] = useState<InteractiveObject | null>(null);
   const [jumpscareFlash, setJumpscareFlash] = useState(false);
 
@@ -32,6 +34,7 @@ export default function App() {
 
     // Listen for final escape victory
     const handleEscaped = () => {
+      setJumpscareFlash(false);
       setMode('ending');
     };
     window.addEventListener('kalapur:escaped', handleEscaped);
@@ -64,25 +67,31 @@ export default function App() {
     }
   };
 
-  const handleStartPlay = () => {
+  const handleStartPlay = useCallback(() => {
     requestLandscapeFullscreen();
     gameState.resetGame();
+    setJumpscareFlash(false);
+    setIsContinueSession(false);
+    setSessionKey((k) => k + 1);
     setMode('playing');
     soundManager.setMusicMood('explore');
     gameState.showSubtitle('You entered Kalapur House. Find a way to unlock the exit door.', 5000);
-  };
+  }, []);
 
-  const handleContinue = () => {
+  const handleContinue = useCallback(() => {
     requestLandscapeFullscreen();
     const saved = gameState.loadGame();
     if (saved) {
+      setJumpscareFlash(false);
+      setIsContinueSession(true);
+      setSessionKey((k) => k + 1);
       setMode('playing');
       soundManager.setMusicMood('explore');
       gameState.showSubtitle('Resumed from latest checkpoint.', 4000);
     } else {
       handleStartPlay();
     }
-  };
+  }, [handleStartPlay]);
 
   const handleReplayIntro = () => {
     setMode('intro');
@@ -96,28 +105,33 @@ export default function App() {
   }, []);
 
   const handleSaveProgress = useCallback(() => {
-    // Save checkpoint at current player position
-    gameState.saveGame(gameState.checkpointPos, gameState.checkpointRot);
+    // Save checkpoint at live player coordinates
+    gameState.saveGame(
+      [...gameState.checkpointPos] as [number, number, number],
+      gameState.checkpointRot
+    );
   }, []);
 
   return (
     <main className="relative w-screen h-screen bg-black overflow-hidden select-none">
-      {/* 3D WebGL Canvas Layer (active during menu, playing, paused, and ending) */}
+      {/* 3D WebGL Canvas Layer (persistent across menu, playing, paused, and ending) */}
       {mode !== 'intro' && (
         <GameCanvas
           mode={mode === 'paused' ? 'playing' : mode}
+          sessionKey={sessionKey}
+          isContinueSession={isContinueSession}
           onCatchPlayer={handleCatchPlayer}
           onInteractiveChange={setCurrentInteractive}
           onSaveProgress={handleSaveProgress}
         />
       )}
 
-      {/* 1. CINEMATIC INTRO */}
+      {/* 1. CINEMATIC INTRO (Preserved) */}
       {mode === 'intro' && (
         <CinematicIntro onComplete={() => setMode('menu')} />
       )}
 
-      {/* 2. MAIN MENU */}
+      {/* 2. MAIN MENU (Preserved) */}
       {mode === 'menu' && (
         <MainMenu
           onPlay={handleStartPlay}
@@ -131,7 +145,9 @@ export default function App() {
         <HUD
           currentInteractive={currentInteractive}
           onPause={() => setMode('paused')}
+          onPlayAgain={handleStartPlay}
           onMainMenu={() => {
+            setJumpscareFlash(false);
             soundManager.setMusicMood('menu');
             soundManager.stopTatyaTrack();
             setMode('menu');
@@ -145,7 +161,9 @@ export default function App() {
           onResume={() => setMode('playing')}
           onSave={handleSaveProgress}
           onMainMenu={() => {
+            setJumpscareFlash(false);
             soundManager.setMusicMood('menu');
+            soundManager.stopTatyaTrack();
             setMode('menu');
           }}
         />
@@ -170,7 +188,7 @@ export default function App() {
               {gameState.settings.villainType === 'tatya' ? 'TATYA VINCHOO CAUGHT YOU' : 'THE KALAPUR GHOST CAUGHT YOU'}
             </h2>
             <p className="text-stone-300 font-mono text-xs uppercase tracking-[0.3em] mt-3">
-              {gameState.settings.villainType === 'tatya' ? '"OM PHAT SWAHA!" • RESPAWNING AT CHECKPOINT...' : 'RESPAWNING AT CHECKPOINT...'}
+              {gameState.settings.villainType === 'tatya' ? '"OM PHAT SWAHA!" • NEXT DAY AWAKENING...' : 'NEXT DAY AWAKENING...'}
             </p>
           </div>
         </div>

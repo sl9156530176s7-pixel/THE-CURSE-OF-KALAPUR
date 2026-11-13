@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { gameState } from '../game/gameState';
+import { gameState, getZoneName } from '../game/gameState';
 import { InteractiveObject } from '../game/houseGeometry';
 import { soundManager } from '../audio/SoundManager';
 import {
@@ -10,31 +10,38 @@ import {
   AlertTriangle,
   X,
   Footprints,
-  Compass,
   Hand,
-  Zap,
+  ZapOff,
   Smartphone,
   ShieldAlert,
   Scissors,
   Calendar,
   Skull,
-  Lock,
-  Unlock,
   Music,
   Bell,
   Wrench,
   Maximize2,
   RotateCw,
+  Map as MapIcon,
+  MapPin,
+  Fuel,
+  BatteryCharging,
+  Car,
+  Anchor,
+  CircleDot,
+  CheckCircle2,
+  Circle,
 } from 'lucide-react';
 import officialLogoImg from '../assets/images/kalapur_official_logo_1793628694332.jpg';
 
 interface HUDProps {
   currentInteractive: InteractiveObject | null;
   onPause: () => void;
+  onPlayAgain?: () => void;
   onMainMenu?: () => void;
 }
 
-export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMenu }) => {
+export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAgain, onMainMenu }) => {
   const [, setTick] = useState(0);
 
   // Auto-detect mobile / touch capability, but allow toggle
@@ -65,8 +72,20 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
   const lastLookPos = useRef({ x: 0, y: 0 });
   const isMouseDownOnLook = useRef(false);
 
+  // Blueprint Map Floor Tab ('upper' | 'ground' | 'crypt')
+  const [mapFloor, setMapFloor] = useState<'upper' | 'ground' | 'crypt'>('ground');
+
   const closeDiary = () => {
     gameState.activeDiaryNote = null;
+    gameState.notify();
+  };
+
+  const toggleBlueprintMap = () => {
+    const fy = gameState.checkpointPos[1] - 1.6;
+    if (fy < -0.8) setMapFloor('crypt');
+    else if (fy >= 2.25) setMapFloor('upper');
+    else setMapFloor('ground');
+    gameState.showBlueprintMap = !gameState.showBlueprintMap;
     gameState.notify();
   };
 
@@ -188,6 +207,14 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
 
   const handleTouchFlashlight = (e: React.MouseEvent | React.TouchEvent) => {
     triggerTouchAction(e, () => gameState.onTouchFlashlight?.());
+  };
+
+  const handleTouchBattery = (e: React.MouseEvent | React.TouchEvent) => {
+    triggerTouchAction(e, () => gameState.onTouchUseBattery?.());
+  };
+
+  const handleTouchDecoy = (e: React.MouseEvent | React.TouchEvent) => {
+    triggerTouchAction(e, () => gameState.onTouchThrowDecoy?.());
   };
 
   const handleTouchSprintToggle = (e: React.MouseEvent | React.TouchEvent) => {
@@ -314,10 +341,15 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
     };
   }, []);
 
-  // Glitch intensity from ghost
+  // Glitch intensity from ghost & live zone calculation
   const glitch = gameState.screenGlitchIntensity;
   const isChasing = gameState.ghostState === 'chase';
   const isHiding = gameState.isHiding !== null;
+  const px = gameState.checkpointPos[0];
+  const py = gameState.checkpointPos[1] - 1.6;
+  const pz = gameState.checkpointPos[2];
+  const currentZone = getZoneName(px, py, pz);
+  const currentFloorLabel = py < -0.8 ? 'CRYPT -1' : py >= 2.25 ? 'UPPER +1' : 'GROUND 0';
 
   return (
     <div className="absolute inset-0 pointer-events-none select-none z-30 overflow-hidden font-sans">
@@ -352,7 +384,7 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
           <div className="w-full h-1/4 bg-black/90 border-b-4 border-stone-900" />
           <div className="flex justify-between items-center px-6 md:px-12">
             <div className="w-12 md:w-16 h-full bg-black/85" />
-            <div className="text-center bg-black/80 px-6 py-4 rounded border border-red-900/60 text-stone-300 shadow-2xl">
+            <div className="text-center bg-black/85 px-6 py-4 rounded border border-red-900/60 text-stone-300 shadow-2xl">
               <span className="text-red-400 font-bold uppercase tracking-widest text-xs block mb-1">
                 Currently Hiding ({gameState.isHiding === 'wardrobe' ? 'Wardrobe' : 'Under Bed'})
               </span>
@@ -372,9 +404,9 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
 
       {/* 1B. ANDROID PORTRAIT-TO-HORIZONTAL HELPER BANNER (Non-blocking) */}
       {touchEnabled && isPortrait && !dismissRotateHint && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 w-[92%] max-w-sm bg-stone-950/95 border border-red-600/80 rounded-lg p-3 shadow-2xl pointer-events-auto flex items-center justify-between gap-2 backdrop-blur-md">
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 w-[92%] max-w-sm bg-stone-950/95 border border-red-600/80 rounded-lg p-3 shadow-2xl pointer-events-auto flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5 text-left">
-            <RotateCw className="w-5 h-5 text-red-400 animate-spin shrink-0" style={{ animationDuration: '3s' }} />
+            <RotateCw className="w-5 h-5 text-red-400 shrink-0" />
             <div>
               <p className="text-xs font-bold text-stone-100">Rotate Phone Horizontally</p>
               <p className="text-[10px] text-stone-400">Best view &amp; controls in landscape</p>
@@ -398,35 +430,43 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
         </div>
       )}
 
-      {/* 2. TOP BAR: OBJECTIVE BADGE, DAY COUNTER, TOUCH TOGGLE, AND PAUSE BUTTON */}
+      {/* 2. TOP BAR: DAY COUNTER, ZONE & OBJECTIVE, POWER CUT ALERT, MAP & CONTROLS */}
       <div className="absolute top-2.5 sm:top-4 left-3 sm:left-5 right-3 sm:right-5 flex justify-between items-start gap-2 z-20 pointer-events-none">
         <div className="flex flex-row items-start gap-2">
           {/* Day Indicator Badge (4 Days Escape System) */}
           <div
-            className={`px-2.5 py-1.5 sm:px-3 sm:py-2 rounded border backdrop-blur-sm shadow-lg flex items-center gap-1.5 shrink-0 ${
+            className={`px-2.5 py-1.5 sm:px-3 sm:py-2 rounded border shadow-lg flex items-center gap-1.5 shrink-0 ${
               gameState.currentDay === 4
-                ? 'bg-red-950/95 border-red-500 text-red-200 animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.5)]'
-                : 'bg-stone-950/85 border-stone-800 text-stone-200'
+                ? 'bg-red-950/95 border-red-500 text-red-200 shadow-[0_0_20px_rgba(239,68,68,0.5)]'
+                : 'bg-stone-950/92 border-stone-800 text-stone-200'
             }`}
           >
             <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500" />
             <div className="flex flex-col leading-none">
               <span className="text-[8px] font-mono tracking-widest uppercase text-stone-400 font-bold hidden sm:inline">
-                {gameState.currentDay === 4 ? 'FINAL DAY' : 'ESCAPE PLAN'}
+                {gameState.currentDay === 4 ? 'FINAL DAY' : currentFloorLabel}
               </span>
-              <span className="text-[11px] sm:text-xs font-serif font-black tracking-wider text-red-400">
+              <span className="text-[11px] sm:text-xs font-serif font-black tracking-wider text-red-400 tabular-nums whitespace-nowrap">
                 DAY {gameState.currentDay}/4
               </span>
             </div>
           </div>
 
-          {/* Objective Pill */}
-          <div className="bg-stone-950/85 border border-stone-800/90 rounded px-2.5 py-1.5 sm:px-3.5 sm:py-2 backdrop-blur-sm max-w-[190px] sm:max-w-xs md:max-w-md shadow-lg">
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <Compass className="w-3 h-3 text-red-500 animate-spin shrink-0" style={{ animationDuration: '8s' }} />
-              <span className="text-[8px] sm:text-[9px] text-red-400 font-mono tracking-widest uppercase font-bold">
-                Mission
-              </span>
+          {/* Zone + Objective Box */}
+          <div className="bg-stone-950/92 border border-stone-800/90 rounded px-2.5 py-1 sm:px-3.5 sm:py-1.5 max-w-[185px] sm:max-w-xs md:max-w-md shadow-lg">
+            <div className="flex items-center justify-between gap-2 mb-0.5">
+              <div className="flex items-center gap-1 min-w-0">
+                <MapPin className="w-3 h-3 text-amber-400 shrink-0" />
+                <span className="text-[9px] sm:text-[10px] text-amber-300 font-mono tracking-wider uppercase font-bold truncate">
+                  {currentZone}
+                </span>
+              </div>
+              {!gameState.breakerPowerOn && (
+                <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-red-900/90 border border-red-500 rounded text-[8px] font-mono font-bold text-red-100 uppercase shrink-0 animate-pulse">
+                  <ZapOff className="w-2.5 h-2.5" />
+                  BLACKOUT
+                </span>
+              )}
             </div>
             <p className="text-[10px] sm:text-xs text-stone-200 font-serif font-medium leading-tight line-clamp-2">
               {gameState.currentObjective}
@@ -436,20 +476,34 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
 
         {/* Ghost Warning Indicator (if in chase) */}
         {isChasing && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-950/95 border border-red-600 rounded text-red-200 text-[10px] sm:text-xs tracking-widest uppercase font-bold animate-bounce shadow-lg">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-950/95 border border-red-500 rounded text-red-100 text-[10px] sm:text-xs tracking-widest uppercase font-bold shadow-[0_0_20px_rgba(220,38,38,0.65)]">
             <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
-            <span className="hidden md:inline">VILLAIN PURSUING</span>
+            <span className="hidden md:inline whitespace-nowrap">VILLAIN PURSUING</span>
           </div>
         )}
 
         {/* Action Controls in Top Bar */}
         <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto shrink-0">
+          {/* Blueprint Map & 3 Escapes Guide */}
+          <button
+            onClick={toggleBlueprintMap}
+            title="Haveli Blueprint & 3 Escapes (Tab)"
+            className={`px-2.5 py-1.5 rounded text-[10px] font-mono tracking-wider flex items-center gap-1 border transition cursor-pointer shadow-md whitespace-nowrap ${
+              gameState.showBlueprintMap
+                ? 'bg-amber-950/95 border-amber-400 text-amber-200'
+                : 'bg-stone-950/92 hover:bg-stone-800 border-amber-700/70 text-amber-300'
+            }`}
+          >
+            <MapIcon className="w-3.5 h-3.5 text-amber-400" />
+            <span className="font-bold">MAP</span>
+          </button>
+
           {/* Landscape Fullscreen Button (Android Horizontal) */}
           {touchEnabled && (
             <button
               onClick={enterHorizontalFullscreen}
               title="Fullscreen Horizontal Mode"
-              className="px-2 py-1.5 rounded text-[10px] font-mono bg-stone-900/85 hover:bg-stone-800 border border-stone-700/70 text-stone-200 flex items-center gap-1 cursor-pointer backdrop-blur-sm shadow-md"
+              className="px-2.5 py-1.5 rounded text-[10px] font-mono bg-stone-950/92 hover:bg-stone-800 border border-stone-700/80 text-stone-200 flex items-center gap-1 cursor-pointer shadow-md whitespace-nowrap"
             >
               <Maximize2 className="w-3.5 h-3.5 text-amber-400" />
               <span className="hidden md:inline">FULL</span>
@@ -463,13 +517,13 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
               gameState.showSubtitle(next ? "Horror Song: ON ('Count the Doors')" : "Horror Song: OFF", 2500);
             }}
             title="Toggle Horror Song: Count the Doors (M)"
-            className={`px-2 py-1.5 rounded text-[10px] font-mono tracking-wider flex items-center gap-1 border transition cursor-pointer backdrop-blur-sm shadow-md ${
+            className={`px-2.5 py-1.5 rounded text-[10px] font-mono tracking-wider flex items-center gap-1 border transition cursor-pointer shadow-md whitespace-nowrap ${
               gameState.settings.songEnabled
-                ? 'bg-amber-950/85 border-amber-500/80 text-amber-200 shadow-[0_0_14px_rgba(245,158,11,0.35)]'
-                : 'bg-stone-900/80 border-stone-700/60 text-stone-400 hover:text-stone-200'
+                ? 'bg-amber-950/92 border-amber-500/80 text-amber-200'
+                : 'bg-stone-950/92 border-stone-700/70 text-stone-400 hover:text-stone-200'
             }`}
           >
-            <Music className={`w-3.5 h-3.5 ${gameState.settings.songEnabled ? 'text-amber-400 animate-pulse' : 'text-stone-600'}`} />
+            <Music className={`w-3.5 h-3.5 ${gameState.settings.songEnabled ? 'text-amber-400' : 'text-stone-500'}`} />
             <span className="hidden md:inline">Song:</span>
             <span>{gameState.settings.songEnabled ? 'ON' : 'OFF'}</span>
           </button>
@@ -478,27 +532,27 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
           <button
             onClick={() => setTouchEnabled((v) => !v)}
             title="Toggle Android On-Screen Joystick & Controls"
-            className={`px-2.5 py-1.5 rounded text-[10px] font-mono tracking-wider flex items-center gap-1 border transition cursor-pointer backdrop-blur-sm shadow-md ${
+            className={`px-2.5 py-1.5 rounded text-[10px] font-mono tracking-wider flex items-center gap-1 border transition cursor-pointer shadow-md whitespace-nowrap ${
               touchEnabled
-                ? 'bg-red-950/90 border-red-500 text-red-200 shadow-[0_0_12px_rgba(239,68,68,0.4)]'
-                : 'bg-stone-900/80 border-stone-700/60 text-stone-400 hover:text-stone-200'
+                ? 'bg-red-950/92 border-red-500 text-red-200'
+                : 'bg-stone-950/92 border-stone-700/70 text-stone-400 hover:text-stone-200'
             }`}
           >
             <Smartphone className="w-3.5 h-3.5 text-red-400" />
             <span className="font-bold">{touchEnabled ? 'PAD ON' : 'PAD OFF'}</span>
           </button>
 
-          {/* Strange Creation Studio Watermark Badge */}
+          {/* Strange Creation Studio Badge */}
           <div
             title="STRANGE CREATION - Dir. Soham Lokhande"
-            className="hidden lg:flex items-center gap-1.5 px-2 py-1 bg-stone-950/85 border border-amber-900/50 rounded backdrop-blur-sm shadow-md"
+            className="hidden lg:flex items-center gap-1.5 px-2 py-1 bg-stone-950/92 border border-amber-900/50 rounded shadow-md"
           >
             <img
               src={officialLogoImg}
               alt="Strange Creation"
               className="w-4 h-4 rounded-full object-cover border border-amber-500/50"
             />
-            <span className="text-[9px] font-mono tracking-widest text-amber-400 font-bold uppercase">
+            <span className="text-[9px] font-mono tracking-widest text-amber-400 font-bold uppercase whitespace-nowrap">
               Strange Creation
             </span>
           </div>
@@ -506,32 +560,37 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
           {/* Pause Button */}
           <button
             onClick={onPause}
-            className="px-2.5 py-1.5 bg-stone-900/85 hover:bg-stone-800 border border-stone-700/60 rounded text-stone-200 text-[10px] sm:text-xs uppercase tracking-widest cursor-pointer backdrop-blur-sm shadow-md font-semibold"
+            className="px-2.5 py-1.5 bg-stone-950/92 hover:bg-stone-800 border border-stone-700/80 rounded text-stone-200 text-[10px] sm:text-xs uppercase tracking-widest cursor-pointer shadow-md font-semibold whitespace-nowrap"
           >
             Pause
           </button>
         </div>
       </div>
 
-      {/* 3. CENTER CROSSHAIR & INTERACTION PROMPT */}
+      {/* 3. CENTER CROSSHAIR & TAPPABLE INTERACTION PROMPT */}
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-20">
         {/* Reticle */}
         <div
           className={`w-2 h-2 rounded-full transition-all duration-150 ${
             currentInteractive
-              ? 'w-4 h-4 bg-red-500 shadow-[0_0_12px_#ff0000] scale-125'
-              : 'bg-stone-400/70'
+              ? 'w-3.5 h-3.5 bg-red-500 shadow-[0_0_12px_#ff0000] scale-125'
+              : 'bg-stone-300/75'
           }`}
         />
 
-        {/* Interaction Prompt Tooltip */}
+        {/* Interaction Prompt Tooltip (Directly Tappable on Android!) */}
         {currentInteractive && (
-          <div className="mt-4 px-3 py-1.5 bg-stone-950/90 border border-stone-700 rounded text-stone-100 text-[11px] sm:text-xs tracking-wide font-sans shadow-2xl backdrop-blur-md flex items-center gap-2 animate-pulse">
+          <button
+            type="button"
+            onTouchStart={handleTouchInteract}
+            onClick={handleTouchInteract}
+            className="mt-4 px-3.5 py-2 bg-stone-950/95 border border-red-700/80 hover:border-red-500 rounded text-stone-100 text-[11px] sm:text-xs tracking-wide font-sans shadow-2xl flex items-center gap-2 pointer-events-auto cursor-pointer active:scale-95 transition-transform"
+          >
             <span className="px-1.5 py-0.5 bg-red-700 text-white font-mono text-[10px] font-bold rounded">
               {touchEnabled ? 'TAP' : 'E'}
             </span>
             <span>{currentInteractive.prompt}</span>
-          </div>
+          </button>
         )}
       </div>
 
@@ -550,13 +609,13 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
           className="absolute bottom-11 sm:bottom-14 left-4 sm:left-7 z-20 pointer-events-auto select-none touch-none"
           onContextMenu={(e) => e.preventDefault()}
         >
-          {/* Mobile Battery & Stamina Mini HUD above Joystick */}
+          {/* Mobile Battery, Stamina & Stealth Mini HUD above Joystick */}
           <div className="mb-2 flex flex-col gap-1.5 w-36 sm:w-44 pointer-events-none">
-            {/* Flashlight Battery Bar */}
-            <div className="flex items-center gap-1.5 bg-black/80 border border-stone-800/90 px-2.5 py-1 rounded backdrop-blur-xs shadow-md">
+            {/* Flashlight Battery Bar + Quick Reload Button */}
+            <div className="flex items-center gap-1.5 bg-stone-950/90 border border-stone-800 px-2.5 py-1 rounded shadow-md">
               <Flashlight
                 className={`w-3.5 h-3.5 ${
-                  gameState.flashlightOn && gameState.flashlightBattery > 0 ? 'text-yellow-400 animate-pulse' : 'text-stone-500'
+                  gameState.flashlightOn && gameState.flashlightBattery > 0 ? 'text-yellow-400' : 'text-stone-500'
                 }`}
               />
               <div className="flex-1 bg-stone-800 h-1.5 rounded-full overflow-hidden">
@@ -567,28 +626,59 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
                   style={{ width: `${gameState.flashlightBattery}%` }}
                 />
               </div>
-              <span className="text-[9px] sm:text-[10px] font-mono text-stone-200 font-bold">{Math.round(gameState.flashlightBattery)}%</span>
+              <span className="text-[9px] sm:text-[10px] font-mono tabular-nums text-stone-200 font-bold">
+                {Math.round(gameState.flashlightBattery)}%
+              </span>
+              {gameState.batteries > 0 && gameState.flashlightBattery < 75 && (
+                <button
+                  type="button"
+                  onTouchStart={handleTouchBattery}
+                  onClick={handleTouchBattery}
+                  className="pointer-events-auto ml-1 px-1.5 py-0.5 bg-yellow-700 hover:bg-yellow-600 text-black text-[8px] font-mono font-black rounded cursor-pointer"
+                  title="Use Spare Battery (R)"
+                >
+                  +BAT
+                </button>
+              )}
             </div>
 
-            {/* Stamina Bar */}
-            <div className="flex items-center gap-1.5 bg-black/80 border border-stone-800/90 px-2.5 py-1 rounded backdrop-blur-xs shadow-md">
+            {/* Stamina & Noise Status Bar */}
+            <div className="flex items-center gap-1.5 bg-stone-950/90 border border-stone-800 px-2.5 py-1 rounded shadow-md">
               <Footprints
-                className={`w-3.5 h-3.5 ${gameState.isSprinting ? 'text-red-400 animate-pulse' : 'text-stone-500'}`}
+                className={`w-3.5 h-3.5 ${
+                  gameState.isCrouching
+                    ? 'text-emerald-400'
+                    : gameState.isSprinting
+                    ? 'text-red-400'
+                    : 'text-stone-400'
+                }`}
               />
               <div className="flex-1 bg-stone-800 h-1.5 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-red-500 transition-all duration-100"
+                  className={`h-full transition-all duration-100 ${
+                    gameState.isCrouching ? 'bg-emerald-500' : 'bg-red-500'
+                  }`}
                   style={{ width: `${gameState.stamina}%` }}
                 />
               </div>
-              <span className="text-[9px] sm:text-[10px] font-mono text-stone-200 font-bold">{Math.round(gameState.stamina)}%</span>
+              <span
+                className={`text-[8px] sm:text-[9px] font-mono font-bold uppercase ${
+                  gameState.isCrouching
+                    ? 'text-emerald-400'
+                    : gameState.isSprinting
+                    ? 'text-red-400'
+                    : 'text-stone-300'
+                }`}
+              >
+                {gameState.isCrouching ? 'SILENT' : gameState.isSprinting ? 'LOUD' : 'WALK'}
+              </span>
             </div>
           </div>
 
           {/* Enlarged Joystick Base */}
           <div
             ref={joystickRef}
-            className={`w-36 h-36 sm:w-44 sm:h-44 rounded-full border-2 bg-stone-950/75 backdrop-blur-md relative flex items-center justify-center touch-none shadow-2xl cursor-pointer ${
+            className={`w-36 h-36 sm:w-44 sm:h-44 rounded-full border-2 bg-stone-950/80 relative flex items-center justify-center touch-none shadow-2xl cursor-pointer ${
               joystickActive
                 ? 'border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.55)]'
                 : 'border-stone-600/85'
@@ -618,11 +708,11 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
         </div>
       )}
 
-      {/* 6. BOTTOM DESKTOP STATUS BARS (BATTERY & STAMINA) */}
+      {/* 6. BOTTOM DESKTOP STATUS BARS (BATTERY & STAMINA - ZERO BACKDROP BLUR FOR FAST WEBGL) */}
       {!touchEnabled && (
         <div className="absolute bottom-6 left-6 space-y-2 pointer-events-auto z-20">
           {/* Flashlight Battery */}
-          <div className="bg-stone-950/85 border border-stone-800/80 rounded px-3 py-2 backdrop-blur-sm flex items-center gap-3 w-48 shadow-lg">
+          <div className="bg-stone-950/92 border border-stone-800/90 rounded px-3 py-2 flex items-center gap-3 w-48 shadow-lg">
             <Flashlight
               className={`w-4 h-4 ${
                 gameState.flashlightOn && gameState.flashlightBattery > 0
@@ -647,7 +737,7 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
           </div>
 
           {/* Sprint Stamina */}
-          <div className="bg-stone-950/85 border border-stone-800/80 rounded px-3 py-2 backdrop-blur-sm flex items-center gap-3 w-48 shadow-lg">
+          <div className="bg-stone-950/92 border border-stone-800/90 rounded px-3 py-2 flex items-center gap-3 w-48 shadow-lg">
             <Footprints
               className={`w-4 h-4 ${
                 gameState.isSprinting ? 'text-red-400 animate-pulse' : 'text-stone-500'
@@ -675,16 +765,16 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
           className="absolute bottom-11 sm:bottom-14 right-4 sm:right-7 z-20 pointer-events-auto flex items-end gap-3 sm:gap-4 touch-none"
           onContextMenu={(e) => e.preventDefault()}
         >
-          {/* Secondary Action Grid (Flashlight, Sprint, Crouch) */}
-          <div className="grid grid-cols-2 sm:flex sm:flex-col gap-2.5 sm:gap-3 items-center">
+          {/* Secondary 2x2 Action Grid (Flashlight, Sprint, Crouch, Lure Decoy) */}
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3 items-center">
             {/* Flashlight Toggle Button */}
             <button
               onTouchStart={handleTouchFlashlight}
               onClick={handleTouchFlashlight}
-              className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 flex flex-col items-center justify-center shadow-xl transition active:scale-90 cursor-pointer backdrop-blur-sm touch-none ${
+              className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 flex flex-col items-center justify-center shadow-xl transition active:scale-90 cursor-pointer touch-none ${
                 gameState.flashlightOn && gameState.flashlightBattery > 0
-                  ? 'bg-yellow-950/85 border-yellow-400 text-yellow-300 shadow-[0_0_16px_rgba(234,179,8,0.55)]'
-                  : 'bg-stone-900/85 border-stone-600 text-stone-400'
+                  ? 'bg-yellow-950/90 border-yellow-400 text-yellow-300 shadow-[0_0_16px_rgba(234,179,8,0.55)]'
+                  : 'bg-stone-950/90 border-stone-600 text-stone-400'
               }`}
               title="Toggle Flashlight (F)"
             >
@@ -698,10 +788,10 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
             <button
               onTouchStart={handleTouchSprintToggle}
               onClick={handleTouchSprintToggle}
-              className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 flex flex-col items-center justify-center shadow-xl transition active:scale-90 cursor-pointer backdrop-blur-sm touch-none ${
+              className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 flex flex-col items-center justify-center shadow-xl transition active:scale-90 cursor-pointer touch-none ${
                 gameState.isSprinting
-                  ? 'bg-red-950/90 border-red-400 text-red-200 shadow-[0_0_16px_rgba(239,68,68,0.6)]'
-                  : 'bg-stone-900/85 border-stone-600 text-stone-300'
+                  ? 'bg-red-950/95 border-red-400 text-red-200 shadow-[0_0_16px_rgba(239,68,68,0.6)]'
+                  : 'bg-stone-950/90 border-stone-600 text-stone-300'
               }`}
               title="Toggle Run"
             >
@@ -715,10 +805,10 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
             <button
               onTouchStart={handleTouchCrouchToggle}
               onClick={handleTouchCrouchToggle}
-              className={`col-span-2 sm:col-span-1 w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 flex flex-col items-center justify-center shadow-xl transition active:scale-90 cursor-pointer backdrop-blur-sm justify-self-end touch-none ${
+              className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 flex flex-col items-center justify-center shadow-xl transition active:scale-90 cursor-pointer touch-none ${
                 gameState.isCrouching
-                  ? 'bg-emerald-950/90 border-emerald-400 text-emerald-300 shadow-[0_0_16px_rgba(16,185,129,0.6)]'
-                  : 'bg-stone-900/85 border-stone-600 text-stone-300'
+                  ? 'bg-emerald-950/95 border-emerald-400 text-emerald-300 shadow-[0_0_16px_rgba(16,185,129,0.6)]'
+                  : 'bg-stone-950/90 border-stone-600 text-stone-300'
               }`}
               title="Toggle Stealth Crouch (Zero Noise)"
             >
@@ -727,16 +817,33 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
                 {gameState.isCrouching ? 'SILENT' : 'CROUCH'}
               </span>
             </button>
+
+            {/* Throw Brass Decoy Lota Button */}
+            <button
+              onTouchStart={handleTouchDecoy}
+              onClick={handleTouchDecoy}
+              className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 flex flex-col items-center justify-center shadow-xl transition active:scale-90 cursor-pointer touch-none ${
+                gameState.decoys > 0
+                  ? 'bg-amber-950/95 border-amber-400 text-amber-200 shadow-[0_0_16px_rgba(245,158,11,0.5)]'
+                  : 'bg-stone-950/90 border-stone-700 text-stone-600'
+              }`}
+              title="Throw Brass Decoy Lota (Q)"
+            >
+              <CircleDot className="w-5 h-5 sm:w-5 sm:h-5 mb-0.5" />
+              <span className="text-[8px] sm:text-[9px] font-mono font-bold uppercase">
+                LURE x{gameState.decoys}
+              </span>
+            </button>
           </div>
 
           {/* Primary Action Button [E / INTERACT] */}
           <button
             onTouchStart={handleTouchInteract}
             onClick={handleTouchInteract}
-            className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 flex flex-col items-center justify-center shadow-2xl transition-all duration-150 active:scale-90 cursor-pointer backdrop-blur-md touch-none ${
+            className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 flex flex-col items-center justify-center shadow-2xl transition-all duration-150 active:scale-90 cursor-pointer touch-none ${
               currentInteractive || isHiding
-                ? 'bg-linear-to-b from-red-600 to-red-900 border-red-300 text-white shadow-[0_0_28px_rgba(220,38,38,0.85)] animate-pulse'
-                : 'bg-stone-950/85 border-stone-600 text-stone-300'
+                ? 'bg-linear-to-b from-red-600 to-red-900 border-red-300 text-white shadow-[0_0_28px_rgba(220,38,38,0.85)]'
+                : 'bg-stone-950/90 border-stone-600 text-stone-300'
             }`}
             title="Interact (E)"
           >
@@ -747,199 +854,244 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
           </button>
         </div>
       ) : (
-        /* DESKTOP INVENTORY TRAY */
-        <div className="absolute bottom-6 right-6 flex items-center gap-2 pointer-events-auto">
-          {/* Photo Frame (Core Mission Item) */}
+        /* DESKTOP INVENTORY TRAY (Gate, Car, Boat + Decoys & Batteries) */
+        <div className="absolute bottom-6 right-6 flex flex-wrap justify-end items-center gap-1.5 max-w-2xl pointer-events-auto">
+          {/* Gate Escape */}
           <div
-            className={`flex flex-col items-center justify-center w-16 h-18 rounded border backdrop-blur-sm transition-all duration-300 shadow-xl ${
-              gameState.hasPhotoFrame
-                ? 'bg-amber-950/80 border-amber-500 text-amber-200 shadow-[0_0_20px_rgba(217,119,6,0.5)]'
-                : gameState.framePlacedOnDoor
-                ? 'bg-emerald-950/60 border-emerald-600 text-emerald-400'
-                : 'bg-stone-950/40 border-stone-800/60 text-stone-700'
-            }`}
-            title="Ancestor Photo Frame"
-          >
-            <ImageIcon className="w-6 h-6 mb-1" />
-            <span className="text-[9px] uppercase tracking-wider font-bold text-center leading-none">
-              {gameState.framePlacedOnDoor ? 'PLACED' : 'FRAME'}
-            </span>
-          </div>
-
-          {/* Old Brass Key */}
-          <div
-            className={`flex flex-col items-center justify-center w-14 h-16 rounded border backdrop-blur-sm transition-all duration-300 shadow-lg ${
-              gameState.hasBrassKey
-                ? 'bg-yellow-950/60 border-yellow-600 text-yellow-300 shadow-[0_0_15px_rgba(202,138,4,0.4)]'
-                : 'bg-stone-950/40 border-stone-800/60 text-stone-700'
-            }`}
-            title="Brass Key"
-          >
-            <Key className="w-5 h-5 mb-1" />
-            <span className="text-[9px] uppercase tracking-wider font-semibold">BRASS</span>
-          </div>
-
-          {/* Sanctum Key */}
-          <div
-            className={`flex flex-col items-center justify-center w-14 h-16 rounded border backdrop-blur-sm transition-all duration-300 shadow-lg ${
-              gameState.hasAtticKey
-                ? 'bg-red-950/60 border-red-600 text-red-300 shadow-[0_0_15px_rgba(220,38,38,0.4)]'
-                : 'bg-stone-950/40 border-stone-800/60 text-stone-700'
-            }`}
-            title="Sanctum Key"
-          >
-            <Key className="w-5 h-5 mb-1" />
-            <span className="text-[9px] uppercase tracking-wider font-semibold">SANCTUM</span>
-          </div>
-
-          {/* Heavy Bolt Cutters */}
-          <div
-            className={`flex flex-col items-center justify-center w-14 h-16 rounded border backdrop-blur-sm transition-all duration-300 shadow-lg ${
-              gameState.hasBoltCutters
-                ? 'bg-rose-950/70 border-rose-600 text-rose-300 shadow-[0_0_15px_rgba(225,29,72,0.4)]'
-                : 'bg-stone-950/40 border-stone-800/60 text-stone-700'
-            }`}
-            title="Heavy Bolt Cutters (cuts gate chains)"
-          >
-            <Scissors className="w-5 h-5 mb-1" />
-            <span className="text-[9px] uppercase tracking-wider font-semibold">CUTTERS</span>
-          </div>
-
-          {/* Heavy Gate Key */}
-          <div
-            className={`flex flex-col items-center justify-center w-14 h-16 rounded border backdrop-blur-sm transition-all duration-300 shadow-lg ${
-              gameState.hasGateKey
-                ? 'bg-amber-950/70 border-amber-600 text-amber-300 shadow-[0_0_15px_rgba(217,119,6,0.4)]'
-                : 'bg-stone-950/40 border-stone-800/60 text-stone-700'
-            }`}
-            title="Gate Key (unlocks gate padlock)"
-          >
-            <Key className="w-5 h-5 mb-1" />
-            <span className="text-[9px] uppercase tracking-wider font-semibold">GATE KEY</span>
-          </div>
-
-          {/* Heavy Steel Crowbar (Escape Route 2) */}
-          <div
-            className={`flex flex-col items-center justify-center w-14 h-16 rounded border backdrop-blur-sm transition-all duration-300 shadow-lg ${
-              gameState.hasCrowbar
-                ? 'bg-cyan-950/70 border-cyan-500 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.4)]'
-                : 'bg-stone-950/40 border-stone-800/60 text-stone-700'
-            }`}
-            title="Heavy Steel Crowbar (pries catacomb hatch bars)"
-          >
-            <Wrench className="w-5 h-5 mb-1" />
-            <span className="text-[9px] uppercase tracking-wider font-semibold">CROWBAR</span>
-          </div>
-
-          {/* Sacred Tantric Bell (Escape Route 2) */}
-          <div
-            className={`flex flex-col items-center justify-center w-14 h-16 rounded border backdrop-blur-sm transition-all duration-300 shadow-lg ${
-              gameState.hasTantricBell
-                ? 'bg-purple-950/70 border-purple-500 text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.4)]'
-                : 'bg-stone-950/40 border-stone-800/60 text-stone-700'
-            }`}
-            title="Sacred Tantric Bell (dispels demon blood seal)"
-          >
-            <Bell className="w-5 h-5 mb-1" />
-            <span className="text-[9px] uppercase tracking-wider font-semibold">BELL</span>
-          </div>
-
-          {/* Batteries count */}
-          <div className="flex flex-col items-center justify-center w-14 h-16 rounded border bg-stone-950/80 border-stone-800 text-stone-300 backdrop-blur-sm shadow-lg">
-            <Battery className="w-5 h-5 text-yellow-500 mb-1" />
-            <span className="text-[10px] font-mono font-bold">x{gameState.batteries}</span>
-          </div>
-        </div>
-      )}
-
-      {/* 8. MINI INVENTORY ROW ON TOP WHEN TOUCH IS ACTIVE (Compact single-row horizontal layout) */}
-      {touchEnabled && (
-        <div className="absolute top-14 sm:top-16 left-3 sm:left-5 flex flex-wrap items-center gap-1 pointer-events-none max-w-lg z-20">
-          <div
-            className={`flex items-center gap-1 px-2 py-0.5 rounded border backdrop-blur-sm text-xs ${
+            className={`flex flex-col items-center justify-center w-12 h-14 rounded border shadow-lg ${
               gameState.hasPhotoFrame
                 ? 'bg-amber-950/90 border-amber-500 text-amber-200'
                 : gameState.framePlacedOnDoor
-                ? 'bg-emerald-950/80 border-emerald-600 text-emerald-400'
-                : 'bg-stone-950/60 border-stone-800 text-stone-600'
+                ? 'bg-emerald-950/85 border-emerald-600 text-emerald-400'
+                : 'bg-stone-950/75 border-stone-800 text-stone-600'
             }`}
+            title="Ancestor Photo Frame (Front Exit)"
           >
-            <ImageIcon className="w-3 h-3" />
-            <span className="text-[9px] font-mono">
-              {gameState.framePlacedOnDoor ? 'MOUNTED' : gameState.hasPhotoFrame ? 'FRAME' : 'NO FRAME'}
-            </span>
+            <ImageIcon className="w-4 h-4 mb-0.5" />
+            <span className="text-[8px] font-mono font-bold">{gameState.framePlacedOnDoor ? 'MOUNT' : 'FRAME'}</span>
           </div>
 
           <div
-            className={`flex items-center gap-1 px-2 py-0.5 rounded border backdrop-blur-sm text-xs ${
-              gameState.hasBoltCutters
-                ? 'bg-rose-950/90 border-rose-500 text-rose-300'
-                : 'bg-stone-950/60 border-stone-800 text-stone-600'
-            }`}
-          >
-            <Scissors className="w-3 h-3" />
-            <span className="text-[9px] font-mono">{gameState.hasBoltCutters ? 'CUTTERS' : 'CUTTERS'}</span>
-          </div>
-
-          <div
-            className={`flex items-center gap-1 px-2 py-0.5 rounded border backdrop-blur-sm text-xs ${
-              gameState.hasGateKey
-                ? 'bg-amber-950/90 border-amber-500 text-amber-300'
-                : 'bg-stone-950/60 border-stone-800 text-stone-600'
-            }`}
-          >
-            <Key className="w-3 h-3" />
-            <span className="text-[9px] font-mono">{gameState.hasGateKey ? 'GATE KEY' : 'GATE KEY'}</span>
-          </div>
-
-          <div
-            className={`flex items-center gap-1 px-2 py-0.5 rounded border backdrop-blur-sm text-xs ${
-              gameState.hasCrowbar
-                ? 'bg-cyan-950/90 border-cyan-500 text-cyan-300'
-                : 'bg-stone-950/60 border-stone-800 text-stone-600'
-            }`}
-          >
-            <Wrench className="w-3 h-3" />
-            <span className="text-[9px] font-mono">{gameState.hasCrowbar ? 'CROWBAR' : 'CROWBAR'}</span>
-          </div>
-
-          <div
-            className={`flex items-center gap-1 px-2 py-0.5 rounded border backdrop-blur-sm text-xs ${
-              gameState.hasTantricBell
-                ? 'bg-purple-950/90 border-purple-500 text-purple-300'
-                : 'bg-stone-950/60 border-stone-800 text-stone-600'
-            }`}
-          >
-            <Bell className="w-3 h-3" />
-            <span className="text-[9px] font-mono">{gameState.hasTantricBell ? 'BELL' : 'BELL'}</span>
-          </div>
-
-          <div
-            className={`flex items-center gap-1 px-2 py-0.5 rounded border backdrop-blur-sm text-xs ${
+            className={`flex flex-col items-center justify-center w-12 h-14 rounded border shadow-lg ${
               gameState.hasBrassKey
-                ? 'bg-yellow-950/90 border-yellow-500 text-yellow-300'
-                : 'bg-stone-950/60 border-stone-800 text-stone-600'
+                ? 'bg-yellow-950/85 border-yellow-600 text-yellow-300'
+                : 'bg-stone-950/75 border-stone-800 text-stone-600'
             }`}
+            title="Brass Key (Master Bedroom)"
           >
-            <Key className="w-3 h-3" />
-            <span className="text-[9px] font-mono">{gameState.hasBrassKey ? 'BRASS' : 'KEY'}</span>
+            <Key className="w-4 h-4 mb-0.5" />
+            <span className="text-[8px] font-mono font-bold">BRASS</span>
           </div>
 
           <div
-            className={`flex items-center gap-1 px-2 py-0.5 rounded border backdrop-blur-sm text-xs ${
+            className={`flex flex-col items-center justify-center w-12 h-14 rounded border shadow-lg ${
               gameState.hasAtticKey
-                ? 'bg-red-950/90 border-red-500 text-red-300'
-                : 'bg-stone-950/60 border-stone-800 text-stone-600'
+                ? 'bg-red-950/85 border-red-600 text-red-300'
+                : 'bg-stone-950/75 border-stone-800 text-stone-600'
             }`}
+            title="Sanctum Key"
           >
-            <Key className="w-3 h-3" />
-            <span className="text-[9px] font-mono">{gameState.hasAtticKey ? 'SANCTUM' : 'KEY'}</span>
+            <Key className="w-4 h-4 mb-0.5" />
+            <span className="text-[8px] font-mono font-bold">SANCT</span>
           </div>
 
-          <div className="flex items-center gap-1 px-2 py-0.5 rounded border bg-stone-950/80 border-stone-800 text-stone-300 backdrop-blur-sm text-xs">
-            <Battery className="w-3 h-3 text-yellow-500" />
-            <span className="text-[9px] font-mono">{Math.round(gameState.flashlightBattery)}%</span>
+          <div
+            className={`flex flex-col items-center justify-center w-12 h-14 rounded border shadow-lg ${
+              gameState.hasBoltCutters
+                ? 'bg-rose-950/85 border-rose-500 text-rose-300'
+                : 'bg-stone-950/75 border-stone-800 text-stone-600'
+            }`}
+            title="Bolt Cutters (Gate Chains)"
+          >
+            <Scissors className="w-4 h-4 mb-0.5" />
+            <span className="text-[8px] font-mono font-bold">CUTTR</span>
           </div>
+
+          <div
+            className={`flex flex-col items-center justify-center w-12 h-14 rounded border shadow-lg ${
+              gameState.hasGateKey
+                ? 'bg-amber-950/85 border-amber-500 text-amber-300'
+                : 'bg-stone-950/75 border-stone-800 text-stone-600'
+            }`}
+            title="Gate Key (Front Gate)"
+          >
+            <Key className="w-4 h-4 mb-0.5" />
+            <span className="text-[8px] font-mono font-bold">GATE</span>
+          </div>
+
+          {/* 1954 Garage Car Escape */}
+          <div
+            className={`flex flex-col items-center justify-center w-12 h-14 rounded border shadow-lg ${
+              gameState.carFueled
+                ? 'bg-emerald-950/85 border-emerald-500 text-emerald-300'
+                : gameState.hasFuelCan
+                ? 'bg-orange-950/85 border-orange-500 text-orange-300'
+                : 'bg-stone-950/75 border-stone-800 text-stone-600'
+            }`}
+            title="Fuel Jerrycan (Garage Car)"
+          >
+            <Fuel className="w-4 h-4 mb-0.5" />
+            <span className="text-[8px] font-mono font-bold">FUEL</span>
+          </div>
+
+          <div
+            className={`flex flex-col items-center justify-center w-12 h-14 rounded border shadow-lg ${
+              gameState.carBatteryInstalled
+                ? 'bg-emerald-950/85 border-emerald-500 text-emerald-300'
+                : gameState.hasCarBattery
+                ? 'bg-lime-950/85 border-lime-500 text-lime-300'
+                : 'bg-stone-950/75 border-stone-800 text-stone-600'
+            }`}
+            title="12V Car Battery (Garage Car)"
+          >
+            <BatteryCharging className="w-4 h-4 mb-0.5" />
+            <span className="text-[8px] font-mono font-bold">12V</span>
+          </div>
+
+          <div
+            className={`flex flex-col items-center justify-center w-12 h-14 rounded border shadow-lg ${
+              gameState.hasCarKey
+                ? 'bg-teal-950/85 border-teal-400 text-teal-200'
+                : 'bg-stone-950/75 border-stone-800 text-stone-600'
+            }`}
+            title="Car Ignition Key (Garage Car)"
+          >
+            <Car className="w-4 h-4 mb-0.5" />
+            <span className="text-[8px] font-mono font-bold">CARKEY</span>
+          </div>
+
+          {/* Underground River Boat Escape */}
+          <div
+            className={`flex flex-col items-center justify-center w-12 h-14 rounded border shadow-lg ${
+              gameState.hasCrowbar
+                ? 'bg-cyan-950/85 border-cyan-500 text-cyan-300'
+                : 'bg-stone-950/75 border-stone-800 text-stone-600'
+            }`}
+            title="Heavy Steel Crowbar (Crypt Bars)"
+          >
+            <Wrench className="w-4 h-4 mb-0.5" />
+            <span className="text-[8px] font-mono font-bold">CROW</span>
+          </div>
+
+          <div
+            className={`flex flex-col items-center justify-center w-12 h-14 rounded border shadow-lg ${
+              gameState.hasTantricBell
+                ? 'bg-purple-950/85 border-purple-500 text-purple-300'
+                : 'bg-stone-950/75 border-stone-800 text-stone-600'
+            }`}
+            title="Sacred Tantric Bell (Crypt Ward)"
+          >
+            <Bell className="w-4 h-4 mb-0.5" />
+            <span className="text-[8px] font-mono font-bold">BELL</span>
+          </div>
+
+          <div
+            className={`flex flex-col items-center justify-center w-12 h-14 rounded border shadow-lg ${
+              gameState.hasBoatOars
+                ? 'bg-sky-950/85 border-sky-400 text-sky-200'
+                : 'bg-stone-950/75 border-stone-800 text-stone-600'
+            }`}
+            title="Wooden Boat Oars (Secret Archive -> Crypt Boat)"
+          >
+            <Anchor className="w-4 h-4 mb-0.5" />
+            <span className="text-[8px] font-mono font-bold">OARS</span>
+          </div>
+
+          {/* Decoy Lotas (Press Q or Click) */}
+          <button
+            type="button"
+            onClick={handleTouchDecoy}
+            title="Throw Brass Decoy Lota [Q]"
+            className="flex flex-col items-center justify-center w-12 h-14 rounded border bg-amber-950/85 hover:bg-amber-900 border-amber-700 text-amber-200 shadow-lg cursor-pointer"
+          >
+            <CircleDot className="w-4 h-4 text-amber-400 mb-0.5" />
+            <span className="text-[8px] font-mono font-bold tabular-nums">Q x{gameState.decoys}</span>
+          </button>
+
+          {/* Spare Batteries (Press R or Click) */}
+          <button
+            type="button"
+            onClick={handleTouchBattery}
+            title="Use Spare Battery [R]"
+            className="flex flex-col items-center justify-center w-12 h-14 rounded border bg-stone-950/92 hover:bg-stone-900 border-stone-700 text-stone-200 shadow-lg cursor-pointer"
+          >
+            <Battery className="w-4 h-4 text-yellow-500 mb-0.5" />
+            <span className="text-[8px] font-mono font-bold tabular-nums">R x{gameState.batteries}</span>
+          </button>
+        </div>
+      )}
+
+      {/* 8. MINI INVENTORY ROW ON TOP WHEN TOUCH IS ACTIVE */}
+      {touchEnabled && (
+        <div className="absolute top-14 sm:top-16 left-3 sm:left-5 flex flex-wrap items-center gap-1 pointer-events-none max-w-xl z-20">
+          <span
+            className={`flex items-center gap-1 px-1.5 py-0.5 rounded border text-[8px] font-mono ${
+              gameState.hasPhotoFrame
+                ? 'bg-amber-950/90 border-amber-500 text-amber-200'
+                : gameState.framePlacedOnDoor
+                ? 'bg-emerald-950/85 border-emerald-500 text-emerald-300'
+                : 'bg-stone-950/75 border-stone-800 text-stone-500'
+            }`}
+          >
+            <ImageIcon className="w-2.5 h-2.5" />
+            {gameState.framePlacedOnDoor ? 'MOUNT' : gameState.hasPhotoFrame ? 'FRAME' : 'FRAME'}
+          </span>
+
+          {gameState.hasBrassKey && (
+            <span className="px-1.5 py-0.5 rounded border bg-yellow-950/90 border-yellow-500 text-yellow-200 text-[8px] font-mono">
+              BRASS KEY
+            </span>
+          )}
+          {gameState.hasAtticKey && (
+            <span className="px-1.5 py-0.5 rounded border bg-red-950/90 border-red-500 text-red-200 text-[8px] font-mono">
+              SANCTUM
+            </span>
+          )}
+          {gameState.hasBoltCutters && (
+            <span className="px-1.5 py-0.5 rounded border bg-rose-950/90 border-rose-500 text-rose-200 text-[8px] font-mono">
+              CUTTERS
+            </span>
+          )}
+          {gameState.hasGateKey && (
+            <span className="px-1.5 py-0.5 rounded border bg-amber-950/90 border-amber-500 text-amber-200 text-[8px] font-mono">
+              GATE KEY
+            </span>
+          )}
+          {gameState.hasFuelCan && (
+            <span className="px-1.5 py-0.5 rounded border bg-orange-950/90 border-orange-500 text-orange-200 text-[8px] font-mono">
+              FUEL
+            </span>
+          )}
+          {gameState.hasCarBattery && (
+            <span className="px-1.5 py-0.5 rounded border bg-lime-950/90 border-lime-500 text-lime-200 text-[8px] font-mono">
+              12V BAT
+            </span>
+          )}
+          {gameState.hasCarKey && (
+            <span className="px-1.5 py-0.5 rounded border bg-teal-950/90 border-teal-400 text-teal-200 text-[8px] font-mono">
+              CAR KEY
+            </span>
+          )}
+          {gameState.hasCrowbar && (
+            <span className="px-1.5 py-0.5 rounded border bg-cyan-950/90 border-cyan-500 text-cyan-200 text-[8px] font-mono">
+              CROWBAR
+            </span>
+          )}
+          {gameState.hasTantricBell && (
+            <span className="px-1.5 py-0.5 rounded border bg-purple-950/90 border-purple-500 text-purple-200 text-[8px] font-mono">
+              BELL
+            </span>
+          )}
+          {gameState.hasBoatOars && (
+            <span className="px-1.5 py-0.5 rounded border bg-sky-950/90 border-sky-400 text-sky-200 text-[8px] font-mono">
+              OARS
+            </span>
+          )}
+
+          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded border bg-stone-950/90 border-stone-800 text-stone-300 text-[8px] font-mono tabular-nums">
+            <Battery className="w-2.5 h-2.5 text-yellow-500" />
+            x{gameState.batteries}
+          </span>
         </div>
       )}
 
@@ -948,7 +1100,7 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
         <div
           className={`absolute ${
             touchEnabled ? 'bottom-4 sm:bottom-6 max-w-[260px] sm:max-w-md px-4 py-2' : 'bottom-24 md:bottom-20 max-w-2xl px-6 py-3'
-          } left-1/2 -translate-x-1/2 text-center rounded text-xs md:text-sm tracking-wide font-sans shadow-2xl backdrop-blur-md transition-all ${
+          } left-1/2 -translate-x-1/2 text-center rounded text-xs md:text-sm tracking-wide font-sans shadow-2xl transition-all ${
             gameState.subtitleText.includes('TATYA')
               ? 'bg-red-950/95 border-2 border-red-600 text-red-100 font-bold shadow-[0_0_30px_rgba(220,38,38,0.7)]'
               : 'bg-black/90 border border-stone-800/90 text-stone-200'
@@ -958,9 +1110,199 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
         </div>
       )}
 
+      {/* 9B. ARCHITECTURAL HAVELI BLUEPRINT MAP & 3 ESCAPE ROUTES MODAL */}
+      {gameState.showBlueprintMap && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/90 pointer-events-auto">
+          <div className="w-full max-w-3xl bg-stone-950 border-2 border-amber-800/80 rounded-lg p-4 sm:p-6 shadow-2xl max-h-[92vh] overflow-y-auto text-stone-200">
+            <div className="flex items-center justify-between border-b border-stone-800 pb-3 mb-4">
+              <div>
+                <span className="text-[10px] font-mono tracking-[0.25em] uppercase text-amber-400 block">
+                  KALAPUR HAVELI ARCHITECTURAL SURVEY • [TAB]
+                </span>
+                <h3 className="text-lg sm:text-xl font-bold tracking-wider text-stone-100" style={{ fontFamily: 'Cinzel, serif' }}>
+                  FLOOR BLUEPRINT &amp; 3 ESCAPE ROUTES
+                </h3>
+              </div>
+              <button
+                onClick={() => {
+                  gameState.showBlueprintMap = false;
+                  gameState.notify();
+                }}
+                className="p-1.5 rounded bg-stone-900 hover:bg-stone-800 text-stone-300 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+              {/* Left: Interactive 3-Floor SVG Blueprint */}
+              <div className="bg-[#09131d] border border-cyan-900/60 rounded p-3">
+                <div className="flex gap-1.5 mb-3">
+                  {(['upper', 'ground', 'crypt'] as const).map((fl) => (
+                    <button
+                      key={fl}
+                      onClick={() => setMapFloor(fl)}
+                      className={`flex-1 py-1.5 rounded text-[10px] font-mono font-bold uppercase cursor-pointer border ${
+                        mapFloor === fl
+                          ? 'bg-cyan-950 border-cyan-400 text-cyan-200'
+                          : 'bg-stone-950 border-stone-800 text-stone-400 hover:text-stone-200'
+                      }`}
+                    >
+                      {fl === 'upper' ? 'Upper (+1)' : fl === 'ground' ? 'Ground (0)' : 'Crypt (-1)'}
+                    </button>
+                  ))}
+                </div>
+
+                {/* SVG Blueprint Grid (World X: -22..25, Z: -22..34 mapped cleanly) */}
+                <svg viewBox="-23 -23 50 58" className="w-full h-60 bg-[#060e16] rounded border border-cyan-950">
+                  {mapFloor === 'ground' && (
+                    <g stroke="#38bdf8" strokeWidth="0.3" fill="rgba(14,116,144,0.12)" fontSize="2.1" fontFamily="monospace">
+                      <rect x="-20" y="-8" width="14" height="13" />
+                      <text x="-13" y="-1.5" fill="#bae6fd" textAnchor="middle" stroke="none">Storage + Crypt</text>
+                      <rect x="-20" y="5" width="14" height="12" />
+                      <text x="-13" y="11.5" fill="#bae6fd" textAnchor="middle" stroke="none">Kitchen</text>
+                      <rect x="-6" y="-8" width="12" height="25" />
+                      <text x="0" y="9.5" fill="#fde68a" textAnchor="middle" stroke="none">Marble Foyer</text>
+                      <rect x="6" y="-8" width="14" height="9.5" />
+                      <text x="13" y="-3" fill="#bae6fd" textAnchor="middle" stroke="none">Dining Hall</text>
+                      <rect x="6" y="1.5" width="14" height="9" />
+                      <text x="13" y="6.5" fill="#bae6fd" textAnchor="middle" stroke="none">Living Room</text>
+                      <rect x="6" y="10.5" width="14" height="6.5" />
+                      <text x="13" y="14" fill="#bae6fd" textAnchor="middle" stroke="none">Puja Shrine</text>
+                      <rect x="-12" y="17" width="24" height="14" stroke="#64748b" fill="rgba(15,23,42,0.25)" />
+                      <text x="0" y="25" fill="#cbd5e1" textAnchor="middle" stroke="none">Courtyard + Well</text>
+                      <rect x="12" y="17" width="12" height="14" stroke="#fb923c" fill="rgba(234,88,12,0.18)" />
+                      <text x="18" y="24.5" fill="#fed7aa" textAnchor="middle" stroke="none">Garage (Car)</text>
+                      <circle cx="5.5" cy="14.5" r="0.9" fill={gameState.breakerPowerOn ? '#22c55e' : '#ef4444'} stroke="none" />
+                      <text x="5.5" y="13" fill="#fca5a5" fontSize="1.6" textAnchor="middle" stroke="none">Breaker</text>
+                      <line x1="-2.2" y1="31" x2="2.2" y2="31" stroke="#f87171" strokeWidth="0.8" />
+                      <text x="0" y="33.5" fill="#f87171" fontSize="1.8" textAnchor="middle" stroke="none">IRON GATE EXIT</text>
+                    </g>
+                  )}
+
+                  {mapFloor === 'upper' && (
+                    <g stroke="#38bdf8" strokeWidth="0.3" fill="rgba(14,116,144,0.14)" fontSize="2.1" fontFamily="monospace">
+                      <rect x="-20" y="0" width="16" height="8" />
+                      <text x="-12" y="4.5" fill="#bae6fd" textAnchor="middle" stroke="none">Guest Room</text>
+                      <rect x="-20" y="-8" width="16" height="8" />
+                      <text x="-12" y="-3.5" fill="#bae6fd" textAnchor="middle" stroke="none">Library</text>
+                      <rect x="-16" y="-16" width="8" height="8" stroke="#f59e0b" strokeDasharray="1,0.6" fill="rgba(245,158,11,0.18)" />
+                      <text x="-12" y="-11.5" fill="#fde68a" textAnchor="middle" stroke="none">Secret Oars</text>
+                      <rect x="-4" y="-8" width="8" height="16" />
+                      <text x="0" y="1" fill="#cbd5e1" textAnchor="middle" stroke="none">Gallery</text>
+                      <rect x="4" y="0" width="16" height="8" />
+                      <text x="12" y="4.5" fill="#bae6fd" textAnchor="middle" stroke="none">Master Bed</text>
+                      <rect x="4" y="-8" width="16" height="8" />
+                      <text x="12" y="-3.5" fill="#bae6fd" textAnchor="middle" stroke="none">Nursery</text>
+                      <rect x="-8" y="-20" width="16" height="12" stroke="#f87171" fill="rgba(185,28,28,0.2)" />
+                      <text x="0" y="-13.5" fill="#fecaca" textAnchor="middle" stroke="none">Mystic Sanctum</text>
+                    </g>
+                  )}
+
+                  {mapFloor === 'crypt' && (
+                    <g stroke="#2dd4bf" strokeWidth="0.35" fill="rgba(13,148,136,0.16)" fontSize="2.1" fontFamily="monospace">
+                      <rect x="-19" y="-7" width="3.6" height="6.8" stroke="#fbbf24" />
+                      <text x="-17.2" y="-3" fill="#fde68a" fontSize="1.6" textAnchor="middle" stroke="none">Stairs</text>
+                      <rect x="-21" y="-14.6" width="16" height="7.6" />
+                      <text x="-13" y="-10" fill="#99f6e4" textAnchor="middle" stroke="none">Crypt Stone Dock</text>
+                      <rect x="-21" y="-21" width="16" height="6.4" fill="rgba(6,78,59,0.45)" />
+                      <text x="-13" y="-17.2" fill="#5eead4" textAnchor="middle" stroke="none">River Escape Boat</text>
+                    </g>
+                  )}
+
+                  {/* Live Player Position Marker if viewing active floor */}
+                  {((mapFloor === 'ground' && py >= -0.8 && py < 2.25) ||
+                    (mapFloor === 'upper' && py >= 2.25) ||
+                    (mapFloor === 'crypt' && py < -0.8)) && (
+                    <g>
+                      <circle cx={px} cy={pz} r="1.4" fill="#ef4444" opacity="0.35" />
+                      <circle cx={px} cy={pz} r="0.7" fill="#fef08a" stroke="#ef4444" strokeWidth="0.3" />
+                    </g>
+                  )}
+                </svg>
+                <p className="text-[10px] text-cyan-300/80 font-mono mt-2">
+                  Current Location: <strong className="text-white">{currentZone}</strong> ({currentFloorLabel})
+                </p>
+              </div>
+
+              {/* Right: 3 Escape Routes Progress Checklist */}
+              <div className="space-y-2.5 text-xs font-sans">
+                {/* Route 1 */}
+                <div className="p-2.5 rounded border border-red-900/60 bg-red-950/20">
+                  <div className="font-bold text-red-300 uppercase tracking-wider mb-1 text-[11px]">
+                    1. Front Courtyard Iron Gate
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 text-[10px] text-stone-300">
+                    <span className="flex items-center gap-1">
+                      {gameState.framePlacedOnDoor ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <Circle className="w-3 h-3 text-stone-500" />}
+                      Frame on Exit Door
+                    </span>
+                    <span className="flex items-center gap-1">
+                      {gameState.hasBoltCutters ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <Circle className="w-3 h-3 text-stone-500" />}
+                      Bolt Cutters
+                    </span>
+                    <span className="flex items-center gap-1">
+                      {gameState.hasGateKey ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <Circle className="w-3 h-3 text-stone-500" />}
+                      Gate Key
+                    </span>
+                  </div>
+                </div>
+
+                {/* Route 2 */}
+                <div className="p-2.5 rounded border border-orange-900/60 bg-orange-950/20">
+                  <div className="font-bold text-orange-300 uppercase tracking-wider mb-1 text-[11px]">
+                    2. East Garage 1954 Escape Car
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 text-[10px] text-stone-300">
+                    <span className="flex items-center gap-1">
+                      {gameState.carFueled || gameState.hasFuelCan ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <Circle className="w-3 h-3 text-stone-500" />}
+                      Fuel Jerrycan
+                    </span>
+                    <span className="flex items-center gap-1">
+                      {gameState.carBatteryInstalled || gameState.hasCarBattery ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <Circle className="w-3 h-3 text-stone-500" />}
+                      12V Car Battery
+                    </span>
+                    <span className="flex items-center gap-1">
+                      {gameState.hasCarKey ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <Circle className="w-3 h-3 text-stone-500" />}
+                      Car Ignition Key
+                    </span>
+                  </div>
+                </div>
+
+                {/* Route 3 */}
+                <div className="p-2.5 rounded border border-teal-900/60 bg-teal-950/20">
+                  <div className="font-bold text-teal-300 uppercase tracking-wider mb-1 text-[11px]">
+                    3. Underground River Crypt Boat
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 text-[10px] text-stone-300">
+                    <span className="flex items-center gap-1">
+                      {gameState.cellarBarsPried || gameState.hasCrowbar ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <Circle className="w-3 h-3 text-stone-500" />}
+                      Heavy Crowbar
+                    </span>
+                    <span className="flex items-center gap-1">
+                      {gameState.cellarSealBroken || gameState.hasTantricBell ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <Circle className="w-3 h-3 text-stone-500" />}
+                      Sacred Bell
+                    </span>
+                    <span className="flex items-center gap-1">
+                      {gameState.hasBoatOars ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <Circle className="w-3 h-3 text-stone-500" />}
+                      Boat Oars (Secret Archive)
+                    </span>
+                  </div>
+                </div>
+
+                {/* Tips */}
+                <div className="p-2 rounded bg-stone-900/90 border border-stone-800 text-[10px] text-stone-400 leading-snug">
+                  <strong className="text-amber-300">Tips:</strong> Pull the Library Bookshelf to reach the Secret Archive &amp; Mystic Sanctum directly. Throw Brass Lotas (<strong className="text-white">Q / LURE</strong>) to distract Tatya. Restore the Grand Foyer Breaker during Blackouts!
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 10. DIARY READER MODAL */}
       {gameState.activeDiaryNote && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md pointer-events-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/88 pointer-events-auto">
           <div className="relative w-full max-w-lg bg-[#2b241a] text-[#f2e6cf] border-4 border-[#5a4831] p-6 md:p-8 rounded shadow-2xl font-serif">
             <button
               onClick={closeDiary}
@@ -1017,10 +1359,10 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
 
       {/* 12. GAME OVER SCREEN (When player fails 4 days) */}
       {gameState.isGameOver && (
-        <div className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center p-6 text-center select-none font-serif pointer-events-auto">
-          <div className="max-w-xl space-y-6">
-            <div className="w-20 h-20 mx-auto rounded-full bg-red-950/80 border-2 border-red-600 flex items-center justify-center shadow-[0_0_50px_rgba(220,38,38,0.8)]">
-              <Skull className="w-10 h-10 text-red-500 animate-pulse" />
+        <div className="fixed inset-0 z-50 bg-black/95 overflow-y-auto flex flex-col items-center justify-center p-6 text-center select-none font-serif pointer-events-auto">
+          <div className="max-w-xl space-y-5 my-auto">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-full bg-red-950/80 border-2 border-red-600 flex items-center justify-center shadow-[0_0_50px_rgba(220,38,38,0.8)]">
+              <Skull className="w-8 h-8 sm:w-10 sm:h-10 text-red-500" />
             </div>
 
             <div className="space-y-1">
@@ -1039,7 +1381,7 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
               You could not escape Kalapur House in 4 days. Tatya Vinchu and the ancient matriarch claimed your soul to wander the dark haveli for eternity.
             </p>
 
-            <div className="py-4 border-y border-stone-800 space-y-1.5">
+            <div className="py-3 sm:py-4 border-y border-stone-800 space-y-1.5">
               <p className="text-red-400 font-semibold text-base md:text-lg tracking-wide font-sans">
                 Thank you for being a part of STRANGE CREATION community
               </p>
@@ -1048,7 +1390,15 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
               </p>
             </div>
 
-            <div className="pt-2">
+            <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+              {onPlayAgain && (
+                <button
+                  onClick={onPlayAgain}
+                  className="px-8 py-3.5 bg-red-800 hover:bg-red-700 border-2 border-red-500 rounded text-white text-xs uppercase tracking-widest font-bold cursor-pointer transition-all shadow-[0_0_30px_rgba(220,38,38,0.6)]"
+                >
+                  Play Again
+                </button>
+              )}
               <button
                 onClick={() => {
                   gameState.resetGame();
@@ -1058,7 +1408,7 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
                     window.location.reload();
                   }
                 }}
-                className="px-8 py-3.5 bg-red-950 hover:bg-red-900 border-2 border-red-600 rounded text-white text-xs uppercase tracking-widest font-bold cursor-pointer transition-all shadow-[0_0_30px_rgba(220,38,38,0.6)]"
+                className="px-7 py-3.5 bg-stone-900 hover:bg-stone-800 border border-stone-700 rounded text-stone-200 text-xs uppercase tracking-widest font-bold cursor-pointer transition-all"
               >
                 Return to Main Menu
               </button>

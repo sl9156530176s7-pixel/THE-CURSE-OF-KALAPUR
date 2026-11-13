@@ -2442,3 +2442,279 @@ export function createStrangeCreationLogoTexture(): THREE.CanvasTexture {
   return createTextureFromCanvas(canvas);
 }
 
+// 30. Nocturnal Gothic-Tantric Haveli Plaster (Deep slate-charcoal, burgundy dado, damp veins)
+export function createGothicWallTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+
+  // Rich atmospheric midnight slate-stone base (far richer than plain brown)
+  ctx.fillStyle = '#2d313d';
+  ctx.fillRect(0, 0, 512, 512);
+
+  // Subtle horizontal stone ashlar courses & moonlight mottling
+  for (let y = 0; y < 400; y += 32) {
+    const shade = Math.floor((Math.random() - 0.5) * 14);
+    ctx.fillStyle = `rgb(${44 + shade},${48 + shade},${60 + shade})`;
+    ctx.fillRect(0, y, 512, 31);
+    ctx.fillStyle = 'rgba(10, 12, 18, 0.45)';
+    ctx.fillRect(0, y + 31, 512, 1);
+  }
+
+  // Exposed dark-crimson aged bricks where plaster crumbled
+  const drawBrickPatch = (bx: number, by: number, bw: number, bh: number) => {
+    ctx.fillStyle = '#471519';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = '#24090b';
+    for (let r = by; r < by + bh; r += 16) {
+      ctx.fillRect(bx, r, bw, 2);
+      for (let c = bx + ((r % 32 === 0) ? 0 : 16); c < bx + bw; c += 32) {
+        ctx.fillRect(c, r, 2, 16);
+      }
+    }
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(bx - 1, by - 1, bw + 2, bh + 2);
+  };
+  drawBrickPatch(55, 200, 96, 68);
+  drawBrickPatch(330, 130, 112, 82);
+
+  // Vertical damp monsoon streaks
+  for (let s = 0; s < 14; s++) {
+    const sx = Math.random() * 512;
+    const len = 80 + Math.random() * 240;
+    const g = ctx.createLinearGradient(sx, 0, sx, len);
+    g.addColorStop(0, 'rgba(8, 12, 20, 0.72)');
+    g.addColorStop(1, 'rgba(8, 12, 20, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(sx, 0, 8 + Math.random() * 14, len);
+  }
+
+  // Deep oxblood-crimson carved wainscoting dado rail on lower wall
+  ctx.fillStyle = '#380e14';
+  ctx.fillRect(0, 412, 512, 100);
+  ctx.fillStyle = '#631d25';
+  ctx.fillRect(0, 408, 512, 8);
+  // Decorative carved panels
+  ctx.strokeStyle = '#1f070a';
+  ctx.lineWidth = 4;
+  for (let px = 16; px < 512; px += 96) {
+    ctx.strokeRect(px, 428, 72, 66);
+  }
+
+  return createTextureFromCanvas(canvas, 2, 2);
+}
+
+// 31. Grand Black & Ivory Checkered Haveli Marble Floor
+export function createCheckeredMarbleTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+
+  const tile = 64;
+  for (let y = 0; y < 512; y += tile) {
+    for (let x = 0; x < 512; x += tile) {
+      const alt = ((x / tile) + (y / tile)) % 2 === 0;
+      ctx.fillStyle = alt ? '#1a1d24' : '#c7bfa8';
+      ctx.fillRect(x, y, tile, tile);
+
+      // Subtle marble veins
+      ctx.strokeStyle = alt ? 'rgba(148, 163, 184, 0.14)' : 'rgba(60, 50, 40, 0.18)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x + 6, y + Math.random() * tile);
+      ctx.bezierCurveTo(x + 22, y + 12, x + 40, y + 48, x + tile - 4, y + Math.random() * tile);
+      ctx.stroke();
+
+      // Grout seam
+      ctx.strokeStyle = '#090a0d';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, tile, tile);
+    }
+  }
+
+  // Aged soot / dust patches
+  for (let d = 0; d < 18; d++) {
+    ctx.fillStyle = 'rgba(10, 8, 6, 0.28)';
+    ctx.beginPath();
+    ctx.arc(Math.random() * 512, Math.random() * 512, 10 + Math.random() * 24, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  return createTextureFromCanvas(canvas, 3, 3);
+}
+
+// 32. Subterranean Catacomb Mossy Stone & Glowing Tantric Chalk Wall
+export function createCatacombBrickTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#0d1417';
+  ctx.fillRect(0, 0, 512, 512);
+
+  const rowH = 48;
+  const colW = 96;
+  for (let y = 0; y < 512; y += rowH) {
+    const offset = ((y / rowH) % 2) * (colW / 2);
+    for (let x = -colW; x < 512; x += colW) {
+      const bx = x + offset;
+      const g = Math.floor(28 + Math.random() * 18);
+      ctx.fillStyle = `rgb(${g - 4},${g + 5},${g + 8})`;
+      ctx.fillRect(bx + 3, y + 3, colW - 6, rowH - 6);
+
+      // Damp green-teal moss in crevices
+      if (Math.random() > 0.55) {
+        ctx.fillStyle = 'rgba(16, 120, 90, 0.25)';
+        ctx.fillRect(bx + 2, y + rowH - 10, colW - 12, 8);
+      }
+    }
+  }
+
+  // Glowing crimson chalk warning rune in center
+  ctx.strokeStyle = 'rgba(220, 38, 38, 0.55)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(256, 256, 62, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(256, 180);
+  ctx.lineTo(256, 332);
+  ctx.moveTo(190, 256);
+  ctx.lineTo(322, 256);
+  ctx.stroke();
+
+  return createTextureFromCanvas(canvas, 3, 2);
+}
+
+// 33. Weathered Corrugated Steel Garage Texture (Oil Stains & Rust)
+export function createGarageMetalTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#2b3036';
+  ctx.fillRect(0, 0, 512, 512);
+
+  for (let x = 0; x < 512; x += 32) {
+    const grad = ctx.createLinearGradient(x, 0, x + 32, 0);
+    grad.addColorStop(0, '#181c20');
+    grad.addColorStop(0.5, '#414952');
+    grad.addColorStop(1, '#181c20');
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, 0, 32, 512);
+  }
+
+  // Rust blotches
+  for (let r = 0; r < 16; r++) {
+    ctx.fillStyle = 'rgba(124, 45, 18, 0.42)';
+    ctx.beginPath();
+    ctx.arc(Math.random() * 512, Math.random() * 512, 18 + Math.random() * 40, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Hazard stripe band at base
+  ctx.fillStyle = '#eab308';
+  ctx.fillRect(0, 444, 512, 40);
+  ctx.fillStyle = '#18181b';
+  for (let hx = -40; hx < 560; hx += 48) {
+    ctx.beginPath();
+    ctx.moveTo(hx, 444);
+    ctx.lineTo(hx + 24, 444);
+    ctx.lineTo(hx + 48, 484);
+    ctx.lineTo(hx + 24, 484);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  return createTextureFromCanvas(canvas, 2, 1);
+}
+
+// 34. Glowing Crimson Tantric Ritual Mandala Floor Circle
+export function createTantricMandalaTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.clearRect(0, 0, 512, 512);
+  const cx = 256;
+  const cy = 256;
+
+  ctx.strokeStyle = '#ef4444';
+  ctx.shadowColor = '#dc2626';
+  ctx.shadowBlur = 14;
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 220, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 175, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Hexagram / Star of Kalapur
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth = 4;
+  for (const offset of [0, Math.PI]) {
+    ctx.beginPath();
+    for (let i = 0; i <= 3; i++) {
+      const a = offset + (i * Math.PI * 2) / 3;
+      const x = cx + Math.cos(a) * 168;
+      const y = cy + Math.sin(a) * 168;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#fca5a5';
+  ctx.font = 'bold 26px serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('ॐ फट् स्वाहा', cx, cy + 8);
+
+  return createTextureFromCanvas(canvas);
+}
+
+// 35. Industrial High-Voltage Breaker Fuse Panel Texture
+export function createBreakerPanelTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 384;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#334155';
+  ctx.fillRect(0, 0, 256, 384);
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 10;
+  ctx.strokeRect(6, 6, 244, 372);
+
+  // Warning sticker
+  ctx.fillStyle = '#facc15';
+  ctx.fillRect(48, 36, 160, 44);
+  ctx.fillStyle = '#09090b';
+  ctx.font = 'bold 18px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('MAIN POWER', 128, 64);
+
+  // Circuit breaker toggles
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(42, 110, 172, 210);
+  for (let row = 0; row < 4; row++) {
+    ctx.fillStyle = '#475569';
+    ctx.fillRect(58, 128 + row * 46, 56, 28);
+    ctx.fillRect(142, 128 + row * 46, 56, 28);
+    ctx.fillStyle = row === 0 ? '#ef4444' : '#22c55e';
+    ctx.fillRect(122, 136 + row * 46, 12, 12);
+  }
+
+  return createTextureFromCanvas(canvas);
+}
+
+
