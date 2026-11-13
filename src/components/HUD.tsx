@@ -257,16 +257,18 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
         }
       }
 
-      // Look drag
+      // Look drag (ignore sub-0.4px finger micro-tremor and clamp wild touch jump spikes)
       if (lookTouchId.current !== null) {
         for (let i = 0; i < e.changedTouches.length; i++) {
           if (e.changedTouches[i].identifier === lookTouchId.current) {
             const touch = e.changedTouches[i];
-            const deltaX = touch.clientX - lastLookPos.current.x;
-            const deltaY = touch.clientY - lastLookPos.current.y;
+            const rawDx = touch.clientX - lastLookPos.current.x;
+            const rawDy = touch.clientY - lastLookPos.current.y;
             lastLookPos.current = { x: touch.clientX, y: touch.clientY };
-            gameState.touchLook.x += deltaX;
-            gameState.touchLook.y += deltaY;
+            const dx = Math.abs(rawDx) < 0.4 ? 0 : Math.max(-45, Math.min(45, rawDx));
+            const dy = Math.abs(rawDy) < 0.4 ? 0 : Math.max(-45, Math.min(45, rawDy));
+            gameState.touchLook.x += dx;
+            gameState.touchLook.y += dy;
             break;
           }
         }
@@ -298,11 +300,13 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
         updateJoystick(e.clientX, e.clientY);
       }
       if (isMouseDownOnLook.current) {
-        const deltaX = e.clientX - lastLookPos.current.x;
-        const deltaY = e.clientY - lastLookPos.current.y;
+        const rawDx = e.clientX - lastLookPos.current.x;
+        const rawDy = e.clientY - lastLookPos.current.y;
         lastLookPos.current = { x: e.clientX, y: e.clientY };
-        gameState.touchLook.x += deltaX;
-        gameState.touchLook.y += deltaY;
+        const dx = Math.abs(rawDx) < 0.35 ? 0 : Math.max(-45, Math.min(45, rawDx));
+        const dy = Math.abs(rawDy) < 0.35 ? 0 : Math.max(-45, Math.min(45, rawDy));
+        gameState.touchLook.x += dx;
+        gameState.touchLook.y += dy;
       }
     };
 
@@ -317,11 +321,15 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
 
     const handleOrientationCheck = () => {
       setIsPortrait(window.innerHeight > window.innerWidth);
+      lookTouchId.current = null;
+      isMouseDownOnLook.current = false;
+      resetJoystick();
     };
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('resize', handleOrientationCheck);
     window.addEventListener('orientationchange', handleOrientationCheck);
+    window.addEventListener('blur', handleOrientationCheck);
     window.addEventListener('touchmove', handleWindowTouchMove, { passive: false });
     window.addEventListener('touchend', handleWindowTouchEnd);
     window.addEventListener('touchcancel', handleWindowTouchEnd);
@@ -333,6 +341,7 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('resize', handleOrientationCheck);
       window.removeEventListener('orientationchange', handleOrientationCheck);
+      window.removeEventListener('blur', handleOrientationCheck);
       window.removeEventListener('touchmove', handleWindowTouchMove);
       window.removeEventListener('touchend', handleWindowTouchEnd);
       window.removeEventListener('touchcancel', handleWindowTouchEnd);
@@ -569,14 +578,19 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
 
       {/* 3. CENTER CROSSHAIR & TAPPABLE INTERACTION PROMPT */}
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-20">
-        {/* Reticle */}
-        <div
-          className={`w-2 h-2 rounded-full transition-all duration-150 ${
-            currentInteractive
-              ? 'w-3.5 h-3.5 bg-red-500 shadow-[0_0_12px_#ff0000] scale-125'
-              : 'bg-stone-300/75'
-          }`}
-        />
+        {/* Granny Ch 3 style Crisp Pinpoint Reticle */}
+        <div className="relative flex items-center justify-center">
+          {currentInteractive && (
+            <div className="absolute w-6 h-6 rounded-full border border-red-400/90 shadow-[0_0_10px_rgba(239,68,68,0.65)]" />
+          )}
+          <div
+            className={`rounded-full transition-colors duration-100 ${
+              currentInteractive
+                ? 'w-2.5 h-2.5 bg-red-500 shadow-[0_0_8px_#ff0000]'
+                : 'w-1.5 h-1.5 bg-white/80 shadow-[0_0_3px_rgba(0,0,0,0.9)]'
+            }`}
+          />
+        </div>
 
         {/* Interaction Prompt Tooltip (Directly Tappable on Android!) */}
         {currentInteractive && (
@@ -584,12 +598,12 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
             type="button"
             onTouchStart={handleTouchInteract}
             onClick={handleTouchInteract}
-            className="mt-4 px-3.5 py-2 bg-stone-950/95 border border-red-700/80 hover:border-red-500 rounded text-stone-100 text-[11px] sm:text-xs tracking-wide font-sans shadow-2xl flex items-center gap-2 pointer-events-auto cursor-pointer active:scale-95 transition-transform"
+            className="mt-4 px-3.5 py-2 bg-stone-950/95 border border-red-600/85 hover:border-red-400 rounded text-stone-100 text-[11px] sm:text-xs tracking-wide font-sans shadow-2xl flex items-center gap-2 pointer-events-auto cursor-pointer active:scale-95 transition-transform"
           >
             <span className="px-1.5 py-0.5 bg-red-700 text-white font-mono text-[10px] font-bold rounded">
               {touchEnabled ? 'TAP' : 'E'}
             </span>
-            <span>{currentInteractive.prompt}</span>
+            <span className="font-medium">{currentInteractive.prompt}</span>
           </button>
         )}
       </div>

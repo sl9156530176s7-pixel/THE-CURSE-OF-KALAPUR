@@ -592,6 +592,7 @@ export class KalapurGhost {
           if (doorDist < 2.0) {
             item.isOpen = true;
             item.mesh.rotation.y = Math.PI / 2;
+            item.mesh.userData.targetRotY = Math.PI / 2;
             soundManager.playDoorSound(true);
             soundManager.playCreepyThud(0.85);
             if (isTatya) {

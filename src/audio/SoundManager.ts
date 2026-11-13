@@ -379,19 +379,20 @@ class SoundManager {
     noise.stop(now + duration + 0.1);
   }
 
-  // Footstep (wood / stone)
-  public playFootstep(isSprinting = false, pan = 0) {
+  // Footstep (wood / stone / shallow crypt water)
+  public playFootstep(isSprinting = false, pan = 0, surface: 'wood' | 'stone' | 'water' = 'wood') {
     if (!this.ctx || !this.sfxGain) return;
     const now = this.ctx.currentTime;
 
     const osc = this.ctx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(isSprinting ? 95 : 75, now);
-    osc.frequency.exponentialRampToValueAtTime(30, now + 0.08);
+    osc.type = surface === 'water' ? 'triangle' : 'sine';
+    const startFreq = surface === 'water' ? 190 : surface === 'stone' ? (isSprinting ? 130 : 105) : (isSprinting ? 95 : 75);
+    osc.frequency.setValueAtTime(startFreq, now);
+    osc.frequency.exponentialRampToValueAtTime(surface === 'water' ? 65 : 32, now + 0.08);
 
     const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(isSprinting ? 0.28 : 0.16, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+    gain.gain.setValueAtTime(isSprinting ? 0.25 : 0.14, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + (surface === 'water' ? 0.14 : 0.09));
 
     const panner = this.ctx.createStereoPanner();
     panner.pan.setValueAtTime(Math.max(-1, Math.min(1, pan)), now);
@@ -401,11 +402,11 @@ class SoundManager {
     panner.connect(this.sfxGain);
 
     osc.start(now);
-    osc.stop(now + 0.1);
+    osc.stop(now + 0.15);
 
-    // Subtle wood floor creak on some footsteps
-    if (Math.random() > 0.6) {
-      this.playWoodCreak(0.08, pan);
+    // Subtle wood floor creak only on wooden floors
+    if (surface === 'wood' && Math.random() > 0.68) {
+      this.playWoodCreak(0.07, pan);
     }
   }
 

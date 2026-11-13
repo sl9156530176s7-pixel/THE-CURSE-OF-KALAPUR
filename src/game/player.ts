@@ -15,10 +15,10 @@ export class PlayerController {
   public targetYaw = 0;
   public targetPitch = 0;
 
-  // Speeds
-  public walkSpeed = 3.6;
-  public sprintSpeed = 6.2;
-  public crouchSpeed = 1.8;
+  // Speeds (Granny Ch 3 balanced control: crisp corners, zero sliding)
+  public walkSpeed = 3.25;
+  public sprintSpeed = 5.15;
+  public crouchSpeed = 1.75;
 
   // Touch / Mobile Input controls for Android / Google Play Store
   public touchMove = { x: 0, z: 0 };
@@ -66,6 +66,7 @@ export class PlayerController {
   constructor(camera: THREE.PerspectiveCamera, domElement: HTMLElement) {
     this.camera = camera;
     this.domElement = domElement;
+    this.camera.rotation.order = 'YXZ';
     this.camera.position.copy(this.position);
 
     const isMobile =
@@ -205,11 +206,13 @@ export class PlayerController {
 
     this.onMouseMoveHandler = (e: MouseEvent) => {
       if (!this.isLocked && gameState.isHiding === null) return;
-      const sens = 0.0022 * (gameState.settings.mouseSensitivity || 1.0);
+      const sens = 0.0018 * (gameState.settings.mouseSensitivity || 0.85);
+      const dx = Math.max(-55, Math.min(55, e.movementX));
+      const dy = Math.max(-55, Math.min(55, e.movementY));
 
-      this.targetYaw -= e.movementX * sens;
-      this.targetPitch -= e.movementY * sens;
-      this.targetPitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, this.targetPitch));
+      this.targetYaw -= dx * sens;
+      this.targetPitch -= dy * sens;
+      this.targetPitch = Math.max(-Math.PI / 2.35, Math.min(Math.PI / 2.35, this.targetPitch));
 
       if (gameState.isHiding) {
         this.targetYaw = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, this.targetYaw));
@@ -284,33 +287,33 @@ export class PlayerController {
     // 2. Held Photo Frame Visibility
     this.heldFrameMesh.visible = gameState.hasPhotoFrame && !gameState.framePlacedOnDoor && gameState.isHiding === null;
 
-    // 2B. Apply Touch Look (Mobile / Android Touch drag) even while hiding
-    const lookX = this.touchLook.x + gameState.touchLook.x;
-    const lookY = this.touchLook.y + gameState.touchLook.y;
-    if (lookX !== 0 || lookY !== 0) {
-      const touchSens = 0.0034 * (gameState.settings.mouseSensitivity || 1.0);
+    // 2B. Apply Touch Look (Direct 1:1 Granny Ch 3 Camera Stability — zero rubber-band lag or drift)
+    const rawLookX = this.touchLook.x + gameState.touchLook.x;
+    const rawLookY = this.touchLook.y + gameState.touchLook.y;
+    if (Math.abs(rawLookX) > 0.3 || Math.abs(rawLookY) > 0.3) {
+      const lookX = Math.max(-48, Math.min(48, rawLookX));
+      const lookY = Math.max(-48, Math.min(48, rawLookY));
+      const touchSens = 0.0024 * (gameState.settings.mouseSensitivity || 0.85);
       this.targetYaw -= lookX * touchSens;
       this.targetPitch -= lookY * touchSens;
-      this.targetPitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, this.targetPitch));
+      this.targetPitch = Math.max(-Math.PI / 2.35, Math.min(Math.PI / 2.35, this.targetPitch));
       if (gameState.isHiding !== null) {
         this.targetYaw = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, this.targetYaw));
         this.targetPitch = Math.max(-Math.PI / 4, Math.min(Math.PI / 4, this.targetPitch));
       }
-      this.touchLook.x = 0;
-      this.touchLook.y = 0;
-      gameState.touchLook.x = 0;
-      gameState.touchLook.y = 0;
     }
+    this.touchLook.x = 0;
+    this.touchLook.y = 0;
+    gameState.touchLook.x = 0;
+    gameState.touchLook.y = 0;
 
-    // Silky smooth camera look damping (eliminates touch micro-stutters)
-    this.yaw = THREE.MathUtils.damp(this.yaw, this.targetYaw, 28, delta);
-    this.pitch = THREE.MathUtils.damp(this.pitch, this.targetPitch, 28, delta);
+    // 1:1 Direct crisp camera orientation (no sluggish elastic lag)
+    this.yaw = this.targetYaw;
+    this.pitch = this.targetPitch;
 
     // 3. If player is hiding in wardrobe or under bed
     if (gameState.isHiding !== null) {
-      this.camera.rotation.set(0, 0, 0);
-      this.camera.rotation.y = this.yaw;
-      this.camera.rotation.x = this.pitch;
+      this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
       this.checkInteractives(interactives);
       return;
     }
@@ -330,14 +333,14 @@ export class PlayerController {
       gameState.stamina = Math.min(100, gameState.stamina + delta * 12);
     }
 
-    // 5. Compute Move Direction (Keyboard + Touch Joystick with Deadzone & Precision Curve)
+    // 5. Compute Move Direction (Keyboard + Touch Joystick with Deadzone & Crisp Response)
     const keyX = (this.keys['KeyD'] ? 1 : 0) - (this.keys['KeyA'] ? 1 : 0);
     const keyZ = (this.keys['KeyS'] ? 1 : 0) - (this.keys['KeyW'] ? 1 : 0);
     let rawTouchX = this.touchMove.x + gameState.touchMove.x;
     let rawTouchZ = this.touchMove.z + gameState.touchMove.z;
     const touchMag = Math.hypot(rawTouchX, rawTouchZ);
-    if (touchMag > 0.11) {
-      const scaledMag = Math.min(1, Math.pow((touchMag - 0.11) / 0.89, 1.15));
+    if (touchMag > 0.14) {
+      const scaledMag = Math.min(1, (touchMag - 0.14) / 0.86);
       rawTouchX = (rawTouchX / touchMag) * scaledMag;
       rawTouchZ = (rawTouchZ / touchMag) * scaledMag;
     } else {
@@ -355,7 +358,6 @@ export class PlayerController {
     if (gameState.isSprinting) targetSpeed = this.sprintSpeed;
     if (gameState.isCrouching) targetSpeed = this.crouchSpeed;
 
-    // Preserve analog slow-walk speed on touch while normalizing max speed
     const speedFactor = Math.min(1, inputLen);
     this.tmpMoveVec.set(moveX, 0, moveZ);
     if (this.tmpMoveVec.lengthSq() > 0) {
@@ -363,11 +365,18 @@ export class PlayerController {
       this.tmpMoveVec.applyAxisAngle(this.tmpUpVec, this.yaw);
     }
 
-    // Smooth velocity damping
+    // Granny Ch 3 Crisp Grounded Movement: instant stop on release, snappy accel on press (zero sliding!)
     const targetVelX = this.tmpMoveVec.x * targetSpeed * speedFactor;
     const targetVelZ = this.tmpMoveVec.z * targetSpeed * speedFactor;
-    this.velocity.x = THREE.MathUtils.damp(this.velocity.x, targetVelX, 16, delta);
-    this.velocity.z = THREE.MathUtils.damp(this.velocity.z, targetVelZ, 16, delta);
+    if (isMoving) {
+      this.velocity.x = THREE.MathUtils.damp(this.velocity.x, targetVelX, 26, delta);
+      this.velocity.z = THREE.MathUtils.damp(this.velocity.z, targetVelZ, 26, delta);
+    } else {
+      this.velocity.x = THREE.MathUtils.damp(this.velocity.x, 0, 55, delta);
+      this.velocity.z = THREE.MathUtils.damp(this.velocity.z, 0, 55, delta);
+      if (Math.abs(this.velocity.x) < 0.05) this.velocity.x = 0;
+      if (Math.abs(this.velocity.z) < 0.05) this.velocity.z = 0;
+    }
 
     // 6. Proposed new position with elevation-aware wall collision check & sliding
     const nextX = this.position.x + this.velocity.x * delta;
@@ -386,7 +395,6 @@ export class PlayerController {
     let collideX = false;
     let collideZ = false;
 
-    // Only test colliders near player's vertical elevation
     for (const box of colliders) {
       if (box.max.y < this.position.y - 1.2 || box.min.y > this.position.y + 0.3) {
         continue;
@@ -398,69 +406,70 @@ export class PlayerController {
     if (!collideX) this.position.x = nextX;
     if (!collideZ) this.position.z = nextZ;
 
-    // 7. Universal Smooth Floor & Staircase Elevation (Climbs Stairs Naturally!)
+    // 7. Smooth Floor & Staircase Elevation
     const currentFloorBaseY = getMansionFloorHeight(this.position.x, this.position.z, this.position.y);
     const targetEyeY = currentFloorBaseY + (gameState.isCrouching ? 0.9 : 1.6);
-    this.position.y = THREE.MathUtils.damp(this.position.y, targetEyeY, 20, delta);
+    this.position.y = THREE.MathUtils.damp(this.position.y, targetEyeY, 24, delta);
 
-    // Sync live checkpoint coordinates for Pause -> Save Checkpoint
+    // Sync live checkpoint coordinates
     gameState.checkpointPos[0] = this.position.x;
     gameState.checkpointPos[1] = this.position.y;
     gameState.checkpointPos[2] = this.position.z;
     gameState.checkpointRot = this.yaw;
 
-    // 8. Head bobbing, idle breathing & footsteps
+    // 8. Rock-Solid Granny Ch 3 Camera Stability + Surface-Aware Footsteps
     const nowSec = performance.now() * 0.001;
     if (isMoving) {
-      const bobFreq = gameState.isSprinting ? 14 : gameState.isCrouching ? 7 : 10;
+      const bobFreq = gameState.isSprinting ? 12 : gameState.isCrouching ? 6.5 : 9;
       this.headbobTimer += delta * bobFreq;
-      const bobY = Math.sin(this.headbobTimer) * (gameState.isSprinting ? 0.075 : 0.038);
-      const bobX = Math.cos(this.headbobTimer * 0.5) * 0.022;
-      this.camera.position.set(this.position.x + bobX, this.position.y + bobY, this.position.z);
+      const bobY = gameState.settings.cameraHeadBob
+        ? Math.sin(this.headbobTimer) * (gameState.isSprinting ? 0.028 : 0.015)
+        : 0;
+      this.camera.position.set(this.position.x, this.position.y + bobY, this.position.z);
 
-      // Footstep audio trigger
+      // Surface-aware Footstep Audio
       this.footstepTimer += delta;
-      const stepDelay = gameState.isSprinting ? 0.28 : gameState.isCrouching ? 0.6 : 0.45;
+      const stepDelay = gameState.isSprinting ? 0.31 : gameState.isCrouching ? 0.62 : 0.47;
       if (this.footstepTimer > stepDelay) {
         this.footstepTimer = 0;
-        soundManager.playFootstep(gameState.isSprinting, 0);
+        const surface: 'wood' | 'stone' | 'water' =
+          currentFloorBaseY < -0.5
+            ? 'water'
+            : currentFloorBaseY < 1.5 && (Math.abs(this.position.x) < 6.0 || this.position.z > 16.5 || this.position.x < -5.8)
+            ? 'stone'
+            : 'wood';
+        soundManager.playFootstep(gameState.isSprinting, 0, surface);
       }
     } else {
-      const idleBreathY = Math.sin(nowSec * 1.8) * 0.012;
-      this.camera.position.set(this.position.x, this.position.y + idleBreathY, this.position.z);
+      // Zero idle sway — completely steady horizon when standing still
+      this.camera.position.set(this.position.x, this.position.y, this.position.z);
     }
 
-    // Smooth Dynamic FOV (Sprint stretch, Crouch stealth focus, Chase adrenaline)
-    let targetFov = 75;
-    if (gameState.ghostState === 'chase') {
-      targetFov = gameState.isSprinting ? 83 : 78 + Math.sin(nowSec * 7) * 0.8;
-    } else if (gameState.isSprinting && isMoving) {
-      targetFov = 81;
+    // Steady FOV (minimal sprint widening, zero chase jitter)
+    let targetFov = 74;
+    if (gameState.isSprinting && isMoving) {
+      targetFov = 76;
     } else if (gameState.isCrouching) {
-      targetFov = 70;
+      targetFov = 72;
     }
-    const nextFov = THREE.MathUtils.damp(this.camera.fov, targetFov, 9, delta);
-    if (Math.abs(nextFov - this.camera.fov) > 0.015) {
+    const nextFov = THREE.MathUtils.damp(this.camera.fov, targetFov, 14, delta);
+    if (Math.abs(nextFov - this.camera.fov) > 0.02) {
       this.camera.fov = nextFov;
       this.camera.updateProjectionMatrix();
     }
 
-    // Handheld Flashlight Aim Sway (Physical inertia when moving & turning)
-    const swayX = Math.sin(nowSec * 2.1) * 0.08 - (this.targetYaw - this.yaw) * 1.4;
-    const swayY = Math.cos(nowSec * 3.2) * 0.05 + (this.targetPitch - this.pitch) * 1.1;
-    this.flashlightTarget.position.x = THREE.MathUtils.damp(this.flashlightTarget.position.x, swayX, 12, delta);
-    this.flashlightTarget.position.y = THREE.MathUtils.damp(this.flashlightTarget.position.y, swayY, 12, delta);
+    // Crisp Flashlight Beam Centered on Crosshair
+    this.flashlightTarget.position.x = THREE.MathUtils.damp(this.flashlightTarget.position.x, 0, 42, delta);
+    this.flashlightTarget.position.y = THREE.MathUtils.damp(this.flashlightTarget.position.y, 0, 42, delta);
 
-    // Apply Camera Rotations
-    this.camera.rotation.set(0, 0, 0);
-    this.camera.rotation.y = this.yaw;
-    this.camera.rotation.x = this.pitch;
+    // Apply Gimbal-Free 'YXZ' Camera Orientation (Zero horizon roll/tilt!)
+    this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
 
-    // Subtle held frame breathing sway
+    // Subtle held frame sway
     if (this.heldFrameMesh.visible) {
-      const swayTime = nowSec * 2;
-      this.heldFrameMesh.position.y = -0.28 + Math.sin(swayTime * 2) * 0.015;
-      this.heldFrameMesh.rotation.z = 0.1 + Math.sin(swayTime) * 0.03;
+      const swayTime = nowSec * 1.5;
+      this.heldFrameMesh.position.y = -0.28 + Math.sin(swayTime * 2) * 0.008;
+      this.heldFrameMesh.rotation.z = 0.08;
     }
 
     // 9. Raycast for interactive objects
@@ -510,9 +519,13 @@ export class PlayerController {
           gameState.drawersOpen[item.drawerId] = item.isOpen;
         }
 
-        // Animate drawer sliding
+        // Smooth sliding target for GameCanvas animation loop
         if (item.drawerMesh) {
-          item.drawerMesh.position.z += item.isOpen ? 0.42 : -0.42;
+          if (item.drawerMesh.userData.baseZ === undefined) {
+            item.drawerMesh.userData.baseZ = item.drawerMesh.position.z;
+          }
+          item.drawerMesh.userData.targetPosZ =
+            item.drawerMesh.userData.baseZ + (item.isOpen ? 0.42 : 0);
         }
 
         soundManager.playDrawerSound(item.isOpen);
@@ -591,10 +604,10 @@ export class PlayerController {
               soundManager.playCreepyThud(0.4);
             }
           } else {
-            // Already unlocked, toggle open
+            // Already unlocked, toggle smooth swing open/closed
             item.isOpen = !item.isOpen;
             soundManager.playDoorSound(item.isOpen);
-            item.mesh.rotation.y = item.isOpen ? -Math.PI / 2 : 0;
+            item.mesh.userData.targetRotY = item.isOpen ? -Math.PI / 2 : 0;
             gameState.showSubtitle(item.isOpen ? 'Exit door open! Escape to the courtyard!' : 'Exit door closed.');
           }
           gameState.notify();
@@ -610,7 +623,7 @@ export class PlayerController {
 
         item.isOpen = !item.isOpen;
         soundManager.playDoorSound(item.isOpen);
-        item.mesh.rotation.y = item.isOpen ? Math.PI / 2 : 0;
+        item.mesh.userData.targetRotY = item.isOpen ? Math.PI / 2 : 0;
         gameState.showSubtitle(item.isOpen ? `Opened ${item.name}` : `Closed ${item.name}`);
         break;
       }
@@ -765,7 +778,7 @@ export class PlayerController {
       case 'secret_bookcase': {
         item.isOpen = !item.isOpen;
         gameState.secretPassageOpen = item.isOpen;
-        item.mesh.rotation.y = item.isOpen ? Math.PI / 2 : 0;
+        item.mesh.userData.targetRotY = item.isOpen ? Math.PI / 2 : 0;
         soundManager.playSecretPassageGrind();
         item.prompt = item.isOpen ? 'Close Revolving Bookshelf [E]' : 'Pull Suspicious Book [E]';
         gameState.showSubtitle(

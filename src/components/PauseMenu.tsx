@@ -133,18 +133,48 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({ onResume, onSave, onMainMe
               </div>
               <div>
                 <div className="flex justify-between mb-1">
-                  <span>Mouse Sensitivity</span>
-                  <span className="font-mono text-red-400">{settings.mouseSensitivity.toFixed(1)}x</span>
+                  <span>Look Sensitivity (Touch &amp; Mouse)</span>
+                  <span className="font-mono text-red-400">{settings.mouseSensitivity.toFixed(2)}x</span>
                 </div>
                 <input
                   type="range"
                   min="0.2"
-                  max="2.5"
-                  step="0.1"
+                  max="2.0"
+                  step="0.05"
                   value={settings.mouseSensitivity}
                   onChange={(e) => handleSettingChange('mouseSensitivity', parseFloat(e.target.value))}
                   className="w-full accent-red-600 bg-stone-800 h-1.5 rounded cursor-pointer"
                 />
+              </div>
+
+              {/* Screen Stability Mode (Granny Steady vs Walk Bob) */}
+              <div className="flex justify-between items-center pt-2 border-t border-stone-800 gap-2">
+                <div className="flex flex-col text-left">
+                  <span className="font-semibold text-stone-200">Screen Stability</span>
+                  <span className="text-[10px] text-stone-500">Zero camera sway or subtle walk step</span>
+                </div>
+                <div className="flex gap-1.5 shrink-0">
+                  <button
+                    onClick={() => handleSettingChange('cameraHeadBob', false)}
+                    className={`px-2.5 py-1 rounded border cursor-pointer font-bold text-[10px] uppercase ${
+                      !settings.cameraHeadBob
+                        ? 'bg-emerald-950/90 border-emerald-500 text-emerald-200'
+                        : 'bg-stone-900 border-stone-800 text-stone-400'
+                    }`}
+                  >
+                    Steady
+                  </button>
+                  <button
+                    onClick={() => handleSettingChange('cameraHeadBob', true)}
+                    className={`px-2.5 py-1 rounded border cursor-pointer font-bold text-[10px] uppercase ${
+                      settings.cameraHeadBob
+                        ? 'bg-red-900 border-red-500 text-white'
+                        : 'bg-stone-900 border-stone-800 text-stone-400'
+                    }`}
+                  >
+                    Walk Bob
+                  </button>
+                </div>
               </div>
 
               {/* Horror Song Toggle */}

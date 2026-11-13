@@ -72,6 +72,7 @@ function syncHouseWithGameState(houseData: HouseData) {
     } else if (item.type === 'secret_bookcase' && gameState.secretPassageOpen) {
       item.isOpen = true;
       item.mesh.rotation.y = Math.PI / 2;
+      item.mesh.userData.targetRotY = Math.PI / 2;
       item.prompt = 'Close Revolving Bookshelf [E]';
     } else if (item.type === 'escape_boat') {
       if (gameState.cellarBarsPried || gameState.cellarSealBroken) {
@@ -199,7 +200,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     const initW = Math.max(1, container.clientWidth);
     const initH = Math.max(1, container.clientHeight);
-    const camera = new THREE.PerspectiveCamera(75, initW / initH, 0.1, 80);
+    const camera = new THREE.PerspectiveCamera(74, initW / initH, 0.1, 80);
 
     const renderer = new THREE.WebGLRenderer({
       antialias: !isSoftwareGl && !isMobile,
@@ -615,6 +616,26 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             } else if (dec.age > 3.2) {
               scene.remove(dec.mesh);
               activeDecoys.splice(i, 1);
+            }
+          }
+
+          // Smooth Granny-style Door, Secret Bookshelf & Drawer animations (Zero-GC)
+          for (const item of activeHouse.interactives) {
+            if (item.mesh.userData.targetRotY !== undefined) {
+              const targetY = item.mesh.userData.targetRotY as number;
+              if (Math.abs(item.mesh.rotation.y - targetY) > 0.002) {
+                item.mesh.rotation.y = THREE.MathUtils.damp(item.mesh.rotation.y, targetY, 12, delta);
+              } else {
+                item.mesh.rotation.y = targetY;
+              }
+            }
+            if (item.drawerMesh && item.drawerMesh.userData.targetPosZ !== undefined) {
+              const targetZ = item.drawerMesh.userData.targetPosZ as number;
+              if (Math.abs(item.drawerMesh.position.z - targetZ) > 0.001) {
+                item.drawerMesh.position.z = THREE.MathUtils.damp(item.drawerMesh.position.z, targetZ, 14, delta);
+              } else {
+                item.drawerMesh.position.z = targetZ;
+              }
             }
           }
 

@@ -13,6 +13,7 @@ export interface GameSettings {
   villainType: 'tatya' | 'ghost';
   songEnabled: boolean;
   difficulty: 'normal' | 'nightmare' | 'hardcore';
+  cameraHeadBob: boolean;
 }
 
 export interface DiaryEntry {
@@ -89,12 +90,13 @@ const DEFAULT_SETTINGS: GameSettings = {
   masterVolume: 0.8,
   musicVolume: 0.7,
   sfxVolume: 0.9,
-  mouseSensitivity: 1.0,
+  mouseSensitivity: 0.85,
   graphicsQuality: 'high',
   showSubtitles: true,
   villainType: 'tatya',
   songEnabled: true,
   difficulty: 'normal',
+  cameraHeadBob: false,
 };
 
 const SAVE_KEY = 'kalapur_save_v2';
