@@ -42,7 +42,30 @@ export default function App() {
     };
   }, []);
 
+  const requestLandscapeFullscreen = () => {
+    const isTouch =
+      typeof window !== 'undefined' &&
+      ('ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth < 1024);
+    if (!isTouch) return;
+    try {
+      const docEl = document.documentElement;
+      if (!document.fullscreenElement && docEl.requestFullscreen) {
+        docEl
+          .requestFullscreen()
+          .then(() => {
+            (screen.orientation as { lock?: (o: string) => Promise<void> })?.lock?.('landscape')?.catch?.(() => {});
+          })
+          .catch(() => {});
+      } else {
+        (screen.orientation as { lock?: (o: string) => Promise<void> })?.lock?.('landscape')?.catch?.(() => {});
+      }
+    } catch {
+      // Ignore unsupported browsers
+    }
+  };
+
   const handleStartPlay = () => {
+    requestLandscapeFullscreen();
     gameState.resetGame();
     setMode('playing');
     soundManager.setMusicMood('explore');
@@ -50,6 +73,7 @@ export default function App() {
   };
 
   const handleContinue = () => {
+    requestLandscapeFullscreen();
     const saved = gameState.loadGame();
     if (saved) {
       setMode('playing');

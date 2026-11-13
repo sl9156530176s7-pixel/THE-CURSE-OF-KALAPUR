@@ -23,6 +23,8 @@ import {
   Music,
   Bell,
   Wrench,
+  Maximize2,
+  RotateCw,
 } from 'lucide-react';
 import officialLogoImg from '../assets/images/kalapur_official_logo_1793628694332.jpg';
 
@@ -43,12 +45,20 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
     );
   });
 
-  // Virtual Joystick State
+  // Virtual Joystick State (Zero-Re-Render DOM transform for 120Hz zero-lag feel)
   const joystickRef = useRef<HTMLDivElement>(null);
-  const [knobPos, setKnobPos] = useState({ x: 0, y: 0 });
+  const knobRef = useRef<HTMLDivElement>(null);
+  const [joystickActive, setJoystickActive] = useState(false);
   const joystickTouchId = useRef<number | null>(null);
   const joystickCenter = useRef({ x: 0, y: 0 });
   const isMouseDownOnJoystick = useRef(false);
+  const lastTouchActionTime = useRef(0);
+
+  // Landscape orientation helper state for Android phones
+  const [isPortrait, setIsPortrait] = useState(() =>
+    typeof window !== 'undefined' ? window.innerHeight > window.innerWidth : false
+  );
+  const [dismissRotateHint, setDismissRotateHint] = useState(false);
 
   // Touch Look Dragging State
   const lookTouchId = useRef<number | null>(null);
@@ -60,10 +70,28 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
     gameState.notify();
   };
 
+  const enterHorizontalFullscreen = () => {
+    try {
+      const docEl = document.documentElement;
+      if (!document.fullscreenElement && docEl.requestFullscreen) {
+        docEl
+          .requestFullscreen()
+          .then(() => {
+            (screen.orientation as { lock?: (o: string) => Promise<void> })?.lock?.('landscape')?.catch?.(() => {});
+          })
+          .catch(() => {});
+      } else {
+        (screen.orientation as { lock?: (o: string) => Promise<void> })?.lock?.('landscape')?.catch?.(() => {});
+      }
+    } catch {
+      // ignore
+    }
+  };
+
   const updateJoystick = (clientX: number, clientY: number) => {
     const dx = clientX - joystickCenter.current.x;
     const dy = clientY - joystickCenter.current.y;
-    const maxRadius = 48;
+    const maxRadius = 42;
     const distance = Math.hypot(dx, dy);
 
     let clampedX = dx;
@@ -73,7 +101,9 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
       clampedY = (dy / distance) * maxRadius;
     }
 
-    setKnobPos({ x: clampedX, y: clampedY });
+    if (knobRef.current) {
+      knobRef.current.style.transform = `translate3d(${clampedX}px, ${clampedY}px, 0)`;
+    }
 
     // Send normalized touch vector into game state (-1 to 1)
     gameState.touchMove.x = clampedX / maxRadius;
@@ -83,7 +113,10 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
   const resetJoystick = () => {
     joystickTouchId.current = null;
     isMouseDownOnJoystick.current = false;
-    setKnobPos({ x: 0, y: 0 });
+    setJoystickActive(false);
+    if (knobRef.current) {
+      knobRef.current.style.transform = 'translate3d(0px, 0px, 0)';
+    }
     gameState.touchMove.x = 0;
     gameState.touchMove.z = 0;
   };
@@ -91,9 +124,11 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
   // Joystick touch handlers
   const handleJoystickStart = (e: React.TouchEvent<HTMLDivElement>) => {
     e.preventDefault();
+    e.stopPropagation();
     if (joystickTouchId.current !== null) return;
     const touch = e.changedTouches[0];
     joystickTouchId.current = touch.identifier;
+    setJoystickActive(true);
 
     if (joystickRef.current) {
       const rect = joystickRef.current.getBoundingClientRect();
@@ -108,7 +143,9 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
   // Mouse fallback for testing on desktop / Android with mouse
   const handleJoystickMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
+    e.stopPropagation();
     isMouseDownOnJoystick.current = true;
+    setJoystickActive(true);
     if (joystickRef.current) {
       const rect = joystickRef.current.getBoundingClientRect();
       joystickCenter.current = {
@@ -119,7 +156,7 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
     }
   };
 
-  // Right-side Touch Look handlers
+  // Fullscreen Touch Look handlers
   const handleLookStart = (e: React.TouchEvent<HTMLDivElement>) => {
     if (lookTouchId.current !== null) return;
     const touch = e.changedTouches[0];
@@ -132,28 +169,39 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
     lastLookPos.current = { x: e.clientX, y: e.clientY };
   };
 
-  // Mobile Action Triggers
-  const handleTouchInteract = (e: React.MouseEvent | React.TouchEvent) => {
+  // Instant Touch Action Triggers (prevents 300ms click delay & accidental swipe cancel on Android)
+  const triggerTouchAction = (e: React.MouseEvent | React.TouchEvent, fn: () => void) => {
     e.stopPropagation();
-    gameState.onTouchInteract?.();
+    if (e.type === 'touchstart') {
+      e.preventDefault();
+      lastTouchActionTime.current = performance.now();
+      fn();
+    } else if (performance.now() - lastTouchActionTime.current > 350) {
+      fn();
+    }
+  };
+
+  const handleTouchInteract = (e: React.MouseEvent | React.TouchEvent) => {
+    triggerTouchAction(e, () => gameState.onTouchInteract?.());
   };
 
   const handleTouchFlashlight = (e: React.MouseEvent | React.TouchEvent) => {
-    e.stopPropagation();
-    gameState.onTouchFlashlight?.();
+    triggerTouchAction(e, () => gameState.onTouchFlashlight?.());
   };
 
   const handleTouchSprintToggle = (e: React.MouseEvent | React.TouchEvent) => {
-    e.stopPropagation();
-    gameState.touchSprint = !gameState.touchSprint;
-    gameState.isSprinting = gameState.touchSprint;
-    gameState.notify();
+    triggerTouchAction(e, () => {
+      gameState.touchSprint = !gameState.touchSprint;
+      gameState.isSprinting = gameState.touchSprint;
+      gameState.notify();
+    });
   };
 
   const handleTouchCrouchToggle = (e: React.MouseEvent | React.TouchEvent) => {
-    e.stopPropagation();
-    gameState.isCrouching = !gameState.isCrouching;
-    gameState.notify();
+    triggerTouchAction(e, () => {
+      gameState.isCrouching = !gameState.isCrouching;
+      gameState.notify();
+    });
   };
 
   // Global window listeners so dragging outside boundaries is smooth and never gets stuck
@@ -239,7 +287,13 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
       }
     };
 
+    const handleOrientationCheck = () => {
+      setIsPortrait(window.innerHeight > window.innerWidth);
+    };
+
     window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('resize', handleOrientationCheck);
+    window.addEventListener('orientationchange', handleOrientationCheck);
     window.addEventListener('touchmove', handleWindowTouchMove, { passive: false });
     window.addEventListener('touchend', handleWindowTouchEnd);
     window.addEventListener('touchcancel', handleWindowTouchEnd);
@@ -249,6 +303,8 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
     return () => {
       unsub();
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', handleOrientationCheck);
+      window.removeEventListener('orientationchange', handleOrientationCheck);
       window.removeEventListener('touchmove', handleWindowTouchMove);
       window.removeEventListener('touchend', handleWindowTouchEnd);
       window.removeEventListener('touchcancel', handleWindowTouchEnd);
@@ -313,37 +369,65 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
         </div>
       )}
 
+      {/* 1B. ANDROID PORTRAIT-TO-HORIZONTAL HELPER BANNER (Non-blocking) */}
+      {touchEnabled && isPortrait && !dismissRotateHint && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 w-[92%] max-w-sm bg-stone-950/95 border border-red-600/80 rounded-lg p-3 shadow-2xl pointer-events-auto flex items-center justify-between gap-2 backdrop-blur-md">
+          <div className="flex items-center gap-2.5 text-left">
+            <RotateCw className="w-5 h-5 text-red-400 animate-spin shrink-0" style={{ animationDuration: '3s' }} />
+            <div>
+              <p className="text-xs font-bold text-stone-100">Rotate Phone Horizontally</p>
+              <p className="text-[10px] text-stone-400">Best view &amp; controls in landscape</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={enterHorizontalFullscreen}
+              className="px-2.5 py-1.5 bg-red-800 hover:bg-red-700 text-white text-[10px] font-bold uppercase rounded cursor-pointer"
+            >
+              Rotate
+            </button>
+            <button
+              onClick={() => setDismissRotateHint(true)}
+              className="p-1 text-stone-400 hover:text-white cursor-pointer"
+              title="Dismiss"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 2. TOP BAR: OBJECTIVE BADGE, DAY COUNTER, TOUCH TOGGLE, AND PAUSE BUTTON */}
-      <div className="absolute top-4 md:top-6 left-4 md:left-6 right-4 md:right-6 flex justify-between items-start gap-2">
-        <div className="flex flex-col sm:flex-row items-start gap-2">
+      <div className="absolute top-2.5 sm:top-4 left-3 sm:left-5 right-3 sm:right-5 flex justify-between items-start gap-2 z-20 pointer-events-none">
+        <div className="flex flex-row items-start gap-2">
           {/* Day Indicator Badge (4 Days Escape System) */}
           <div
-            className={`px-3 py-2 rounded border backdrop-blur-sm shadow-lg flex items-center gap-2 ${
+            className={`px-2.5 py-1.5 sm:px-3 sm:py-2 rounded border backdrop-blur-sm shadow-lg flex items-center gap-1.5 shrink-0 ${
               gameState.currentDay === 4
                 ? 'bg-red-950/95 border-red-500 text-red-200 animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.5)]'
                 : 'bg-stone-950/85 border-stone-800 text-stone-200'
             }`}
           >
-            <Calendar className="w-4 h-4 text-red-500" />
+            <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500" />
             <div className="flex flex-col leading-none">
-              <span className="text-[9px] font-mono tracking-widest uppercase text-stone-400 font-bold">
+              <span className="text-[8px] font-mono tracking-widest uppercase text-stone-400 font-bold hidden sm:inline">
                 {gameState.currentDay === 4 ? 'FINAL DAY' : 'ESCAPE PLAN'}
               </span>
-              <span className="text-xs font-serif font-black tracking-wider text-red-400">
-                DAY {gameState.currentDay} / 4
+              <span className="text-[11px] sm:text-xs font-serif font-black tracking-wider text-red-400">
+                DAY {gameState.currentDay}/4
               </span>
             </div>
           </div>
 
           {/* Objective Pill */}
-          <div className="bg-stone-950/85 border border-stone-800/90 rounded px-3 py-2 md:px-4 md:py-2.5 backdrop-blur-sm max-w-sm md:max-w-md shadow-lg">
-            <div className="flex items-center gap-2 mb-1">
-              <Compass className="w-3.5 h-3.5 text-red-500 animate-spin" style={{ animationDuration: '8s' }} />
-              <span className="text-[9px] md:text-[10px] text-red-400 font-mono tracking-widest uppercase font-bold">
-                Current Mission
+          <div className="bg-stone-950/85 border border-stone-800/90 rounded px-2.5 py-1.5 sm:px-3.5 sm:py-2 backdrop-blur-sm max-w-[190px] sm:max-w-xs md:max-w-md shadow-lg">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <Compass className="w-3 h-3 text-red-500 animate-spin shrink-0" style={{ animationDuration: '8s' }} />
+              <span className="text-[8px] sm:text-[9px] text-red-400 font-mono tracking-widest uppercase font-bold">
+                Mission
               </span>
             </div>
-            <p className="text-xs md:text-sm text-stone-200 font-serif font-medium leading-tight">
+            <p className="text-[10px] sm:text-xs text-stone-200 font-serif font-medium leading-tight line-clamp-2">
               {gameState.currentObjective}
             </p>
           </div>
@@ -351,14 +435,26 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
 
         {/* Ghost Warning Indicator (if in chase) */}
         {isChasing && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-red-950/95 border border-red-600 rounded text-red-200 text-xs tracking-widest uppercase font-bold animate-bounce shadow-lg">
-            <AlertTriangle className="w-4 h-4 text-red-400" />
-            <span className="hidden sm:inline">VILLAIN PURSUING</span>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-950/95 border border-red-600 rounded text-red-200 text-[10px] sm:text-xs tracking-widest uppercase font-bold animate-bounce shadow-lg">
+            <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
+            <span className="hidden md:inline">VILLAIN PURSUING</span>
           </div>
         )}
 
         {/* Action Controls in Top Bar */}
-        <div className="flex items-center gap-2 pointer-events-auto">
+        <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto shrink-0">
+          {/* Landscape Fullscreen Button (Android Horizontal) */}
+          {touchEnabled && (
+            <button
+              onClick={enterHorizontalFullscreen}
+              title="Fullscreen Horizontal Mode"
+              className="px-2 py-1.5 rounded text-[10px] font-mono bg-stone-900/85 hover:bg-stone-800 border border-stone-700/70 text-stone-200 flex items-center gap-1 cursor-pointer backdrop-blur-sm shadow-md"
+            >
+              <Maximize2 className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden md:inline">FULL</span>
+            </button>
+          )}
+
           {/* Toggle Song Button */}
           <button
             onClick={() => {
@@ -366,14 +462,14 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
               gameState.showSubtitle(next ? "Horror Song: ON ('Count the Doors')" : "Horror Song: OFF", 2500);
             }}
             title="Toggle Horror Song: Count the Doors (M)"
-            className={`px-2.5 py-1.5 rounded text-[11px] font-mono tracking-wider flex items-center gap-1.5 border transition cursor-pointer backdrop-blur-sm shadow-md ${
+            className={`px-2 py-1.5 rounded text-[10px] font-mono tracking-wider flex items-center gap-1 border transition cursor-pointer backdrop-blur-sm shadow-md ${
               gameState.settings.songEnabled
                 ? 'bg-amber-950/85 border-amber-500/80 text-amber-200 shadow-[0_0_14px_rgba(245,158,11,0.35)]'
                 : 'bg-stone-900/80 border-stone-700/60 text-stone-400 hover:text-stone-200'
             }`}
           >
             <Music className={`w-3.5 h-3.5 ${gameState.settings.songEnabled ? 'text-amber-400 animate-pulse' : 'text-stone-600'}`} />
-            <span className="hidden sm:inline">Song:</span>
+            <span className="hidden md:inline">Song:</span>
             <span>{gameState.settings.songEnabled ? 'ON' : 'OFF'}</span>
           </button>
 
@@ -381,15 +477,14 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
           <button
             onClick={() => setTouchEnabled((v) => !v)}
             title="Toggle Android On-Screen Joystick & Controls"
-            className={`px-3 py-1.5 rounded text-[11px] font-mono tracking-wider flex items-center gap-1.5 border transition cursor-pointer backdrop-blur-sm shadow-md ${
+            className={`px-2.5 py-1.5 rounded text-[10px] font-mono tracking-wider flex items-center gap-1 border transition cursor-pointer backdrop-blur-sm shadow-md ${
               touchEnabled
                 ? 'bg-red-950/90 border-red-500 text-red-200 shadow-[0_0_12px_rgba(239,68,68,0.4)]'
                 : 'bg-stone-900/80 border-stone-700/60 text-stone-400 hover:text-stone-200'
             }`}
           >
             <Smartphone className="w-3.5 h-3.5 text-red-400" />
-            <span className="hidden sm:inline">Android Joystick:</span>
-            <span className="font-bold">{touchEnabled ? 'READY (ON)' : 'OFF'}</span>
+            <span className="font-bold">{touchEnabled ? 'PAD ON' : 'PAD OFF'}</span>
           </button>
 
           {/* Strange Creation Studio Watermark Badge */}
@@ -410,7 +505,7 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
           {/* Pause Button */}
           <button
             onClick={onPause}
-            className="px-3 py-1.5 bg-stone-900/80 hover:bg-stone-800 border border-stone-700/60 rounded text-stone-300 text-xs uppercase tracking-widest cursor-pointer backdrop-blur-sm shadow-md"
+            className="px-2.5 py-1.5 bg-stone-900/85 hover:bg-stone-800 border border-stone-700/60 rounded text-stone-200 text-[10px] sm:text-xs uppercase tracking-widest cursor-pointer backdrop-blur-sm shadow-md font-semibold"
           >
             Pause
           </button>
@@ -418,7 +513,7 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
       </div>
 
       {/* 3. CENTER CROSSHAIR & INTERACTION PROMPT */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-20">
         {/* Reticle */}
         <div
           className={`w-2 h-2 rounded-full transition-all duration-150 ${
@@ -430,36 +525,31 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
 
         {/* Interaction Prompt Tooltip */}
         {currentInteractive && (
-          <div className="mt-6 px-4 py-2 bg-stone-950/90 border border-stone-700 rounded text-stone-100 text-xs md:text-sm tracking-wide font-sans shadow-2xl backdrop-blur-md flex items-center gap-2 animate-pulse">
-            <span className="px-1.5 py-0.5 bg-red-700 text-white font-mono text-xs font-bold rounded">
-              E
+          <div className="mt-4 px-3 py-1.5 bg-stone-950/90 border border-stone-700 rounded text-stone-100 text-[11px] sm:text-xs tracking-wide font-sans shadow-2xl backdrop-blur-md flex items-center gap-2 animate-pulse">
+            <span className="px-1.5 py-0.5 bg-red-700 text-white font-mono text-[10px] font-bold rounded">
+              {touchEnabled ? 'TAP' : 'E'}
             </span>
             <span>{currentInteractive.prompt}</span>
           </div>
         )}
       </div>
 
-      {/* 4. ANDROID / TOUCH SCREEN LOOK DRAG ZONE (RIGHT 60% OF SCREEN) */}
+      {/* 4. ANDROID / FULLSCREEN TOUCH LOOK DRAG ZONE (Entire viewport behind controls) */}
       {touchEnabled && (
         <div
-          className="absolute top-16 right-0 w-3/5 bottom-0 pointer-events-auto touch-none z-10 flex items-center justify-center select-none"
+          className="absolute inset-0 pointer-events-auto touch-none z-10 select-none"
           onTouchStart={handleLookStart}
           onMouseDown={handleLookMouseDown}
-        >
-          {/* Subtle guide text */}
-          <div className="text-[10px] text-stone-400/40 tracking-widest uppercase font-mono pointer-events-none select-none border border-stone-800/30 px-3 py-1 rounded-full bg-black/20 backdrop-blur-xs">
-            Swipe to Look
-          </div>
-        </div>
+        />
       )}
 
-      {/* 5. VIRTUAL JOYSTICK (BOTTOM LEFT) FOR ANDROID / PLAY STORE */}
+      {/* 5. VIRTUAL JOYSTICK (BOTTOM LEFT - Compact for Horizontal Android) */}
       {touchEnabled && (
-        <div className="absolute bottom-6 left-6 z-20 pointer-events-auto select-none">
+        <div className="absolute bottom-3 sm:bottom-5 left-3 sm:left-5 z-20 pointer-events-auto select-none">
           {/* Mobile Battery & Stamina Mini HUD above Joystick */}
-          <div className="mb-3 flex flex-col gap-1.5 w-34 pointer-events-none">
+          <div className="mb-1.5 flex flex-col gap-1 w-28 sm:w-32 pointer-events-none">
             {/* Flashlight Battery Bar */}
-            <div className="flex items-center gap-1.5 bg-black/75 border border-stone-800/90 px-2 py-1 rounded backdrop-blur-xs shadow-md">
+            <div className="flex items-center gap-1.5 bg-black/75 border border-stone-800/90 px-2 py-0.5 rounded backdrop-blur-xs shadow-md">
               <Flashlight
                 className={`w-3 h-3 ${
                   gameState.flashlightOn && gameState.flashlightBattery > 0 ? 'text-yellow-400 animate-pulse' : 'text-stone-500'
@@ -473,11 +563,11 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
                   style={{ width: `${gameState.flashlightBattery}%` }}
                 />
               </div>
-              <span className="text-[9px] font-mono text-stone-300 font-bold">{Math.round(gameState.flashlightBattery)}%</span>
+              <span className="text-[8px] font-mono text-stone-300 font-bold">{Math.round(gameState.flashlightBattery)}%</span>
             </div>
 
             {/* Stamina Bar */}
-            <div className="flex items-center gap-1.5 bg-black/75 border border-stone-800/90 px-2 py-1 rounded backdrop-blur-xs shadow-md">
+            <div className="flex items-center gap-1.5 bg-black/75 border border-stone-800/90 px-2 py-0.5 rounded backdrop-blur-xs shadow-md">
               <Footprints
                 className={`w-3 h-3 ${gameState.isSprinting ? 'text-red-400 animate-pulse' : 'text-stone-500'}`}
               />
@@ -487,16 +577,16 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
                   style={{ width: `${gameState.stamina}%` }}
                 />
               </div>
-              <span className="text-[9px] font-mono text-stone-300 font-bold">{Math.round(gameState.stamina)}%</span>
+              <span className="text-[8px] font-mono text-stone-300 font-bold">{Math.round(gameState.stamina)}%</span>
             </div>
           </div>
 
           {/* Joystick Base */}
           <div
             ref={joystickRef}
-            className={`w-34 h-34 rounded-full border-2 bg-stone-950/75 backdrop-blur-md relative flex items-center justify-center touch-none shadow-2xl transition-all duration-150 cursor-pointer ${
-              knobPos.x !== 0 || knobPos.y !== 0
-                ? 'border-red-500 shadow-[0_0_25px_rgba(239,68,68,0.4)]'
+            className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full border-2 bg-stone-950/70 backdrop-blur-md relative flex items-center justify-center touch-none shadow-2xl cursor-pointer ${
+              joystickActive
+                ? 'border-red-500 shadow-[0_0_25px_rgba(239,68,68,0.45)]'
                 : 'border-stone-700/80'
             }`}
             onTouchStart={handleJoystickStart}
@@ -506,32 +596,27 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
             <div className="absolute inset-2 rounded-full border border-stone-800/60 pointer-events-none" />
 
             {/* Guide directional cross marks */}
-            <div className="absolute top-2.5 text-[10px] font-mono text-stone-500 font-bold">▲</div>
-            <div className="absolute bottom-2.5 text-[10px] font-mono text-stone-500 font-bold">▼</div>
-            <div className="absolute left-2.5 text-[10px] font-mono text-stone-500 font-bold">◀</div>
-            <div className="absolute right-2.5 text-[10px] font-mono text-stone-500 font-bold">▶</div>
+            <div className="absolute top-1.5 text-[9px] font-mono text-stone-500 font-bold pointer-events-none">▲</div>
+            <div className="absolute bottom-1.5 text-[9px] font-mono text-stone-500 font-bold pointer-events-none">▼</div>
+            <div className="absolute left-2 text-[9px] font-mono text-stone-500 font-bold pointer-events-none">◀</div>
+            <div className="absolute right-2 text-[9px] font-mono text-stone-500 font-bold pointer-events-none">▶</div>
 
-            {/* Moving Knob */}
+            {/* Moving Knob (Zero-latency direct DOM transform) */}
             <div
-              className="w-16 h-16 rounded-full bg-linear-to-b from-red-600 via-stone-900 to-black border-2 border-red-500 shadow-[0_0_18px_rgba(239,68,68,0.7)] flex items-center justify-center transition-transform duration-75 pointer-events-none"
-              style={{
-                transform: `translate(${knobPos.x}px, ${knobPos.y}px)`,
-              }}
+              ref={knobRef}
+              className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-linear-to-b from-red-600 via-stone-900 to-black border-2 border-red-500 shadow-[0_0_18px_rgba(239,68,68,0.7)] flex items-center justify-center pointer-events-none will-change-transform"
             >
-              <div className="w-5 h-5 rounded-full bg-red-400/90 shadow-inner flex items-center justify-center">
+              <div className="w-4 h-4 rounded-full bg-red-400/90 shadow-inner flex items-center justify-center">
                 <div className="w-1.5 h-1.5 rounded-full bg-white/80" />
               </div>
             </div>
           </div>
-          <span className="block text-center text-[10px] font-mono text-red-400 mt-1.5 uppercase tracking-widest font-bold">
-            MOVE JOYSTICK
-          </span>
         </div>
       )}
 
       {/* 6. BOTTOM DESKTOP STATUS BARS (BATTERY & STAMINA) */}
       {!touchEnabled && (
-        <div className="absolute bottom-6 left-6 space-y-2 pointer-events-auto">
+        <div className="absolute bottom-6 left-6 space-y-2 pointer-events-auto z-20">
           {/* Flashlight Battery */}
           <div className="bg-stone-950/85 border border-stone-800/80 rounded px-3 py-2 backdrop-blur-sm flex items-center gap-3 w-48 shadow-lg">
             <Flashlight
@@ -580,52 +665,55 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
         </div>
       )}
 
-      {/* 7. ANDROID / TOUCH SCREEN ACTION BUTTON CLUSTER (BOTTOM RIGHT) */}
+      {/* 7. ANDROID / TOUCH SCREEN ACTION BUTTON CLUSTER (BOTTOM RIGHT - Compact Landscape Ergonomics) */}
       {touchEnabled ? (
-        <div className="absolute bottom-6 right-6 z-20 pointer-events-auto flex items-end gap-3">
+        <div className="absolute bottom-3 sm:bottom-5 right-3 sm:right-5 z-20 pointer-events-auto flex items-end gap-2.5 touch-none">
           {/* Secondary Action Column (Flashlight, Sprint, Crouch) */}
-          <div className="flex flex-col gap-2.5 items-center">
+          <div className="grid grid-cols-2 sm:flex sm:flex-col gap-2 items-center">
             {/* Flashlight Toggle Button */}
             <button
+              onTouchStart={handleTouchFlashlight}
               onClick={handleTouchFlashlight}
-              className={`w-12 h-12 rounded-full border flex items-center justify-center shadow-lg transition active:scale-95 cursor-pointer backdrop-blur-sm ${
+              className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full border flex items-center justify-center shadow-lg transition active:scale-90 cursor-pointer backdrop-blur-sm ${
                 gameState.flashlightOn && gameState.flashlightBattery > 0
-                  ? 'bg-yellow-950/80 border-yellow-500 text-yellow-300 shadow-[0_0_12px_rgba(234,179,8,0.5)]'
-                  : 'bg-stone-900/80 border-stone-700 text-stone-500'
+                  ? 'bg-yellow-950/85 border-yellow-500 text-yellow-300 shadow-[0_0_12px_rgba(234,179,8,0.5)]'
+                  : 'bg-stone-900/85 border-stone-700 text-stone-500'
               }`}
               title="Toggle Flashlight (F)"
             >
-              <Flashlight className="w-5 h-5" />
+              <Flashlight className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
             {/* Sprint Toggle Button */}
             <button
+              onTouchStart={handleTouchSprintToggle}
               onClick={handleTouchSprintToggle}
-              className={`w-12 h-12 rounded-full border flex flex-col items-center justify-center shadow-lg transition active:scale-95 cursor-pointer backdrop-blur-sm ${
+              className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full border flex flex-col items-center justify-center shadow-lg transition active:scale-90 cursor-pointer backdrop-blur-sm ${
                 gameState.isSprinting
                   ? 'bg-red-950/90 border-red-500 text-red-200 shadow-[0_0_12px_rgba(239,68,68,0.6)]'
-                  : 'bg-stone-900/80 border-stone-700 text-stone-400'
+                  : 'bg-stone-900/85 border-stone-700 text-stone-400'
               }`}
               title="Toggle Run"
             >
-              <Footprints className="w-4 h-4 mb-0.5" />
-              <span className="text-[8px] font-mono font-bold uppercase">
+              <Footprints className="w-3.5 h-3.5 sm:w-4 sm:h-4 mb-0.5" />
+              <span className="text-[7px] sm:text-[8px] font-mono font-bold uppercase">
                 {gameState.isSprinting ? 'RUN' : 'WALK'}
               </span>
             </button>
 
             {/* Stealth Crouch Toggle Button */}
             <button
+              onTouchStart={handleTouchCrouchToggle}
               onClick={handleTouchCrouchToggle}
-              className={`w-12 h-12 rounded-full border flex flex-col items-center justify-center shadow-lg transition active:scale-95 cursor-pointer backdrop-blur-sm ${
+              className={`col-span-2 sm:col-span-1 w-11 h-11 sm:w-12 sm:h-12 rounded-full border flex flex-col items-center justify-center shadow-lg transition active:scale-90 cursor-pointer backdrop-blur-sm justify-self-end ${
                 gameState.isCrouching
                   ? 'bg-emerald-950/90 border-emerald-500 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.6)]'
-                  : 'bg-stone-900/80 border-stone-700 text-stone-400'
+                  : 'bg-stone-900/85 border-stone-700 text-stone-400'
               }`}
               title="Toggle Stealth Crouch (Zero Noise)"
             >
-              <ShieldAlert className="w-4 h-4 mb-0.5" />
-              <span className="text-[8px] font-mono font-bold uppercase">
+              <ShieldAlert className="w-3.5 h-3.5 sm:w-4 sm:h-4 mb-0.5" />
+              <span className="text-[7px] sm:text-[8px] font-mono font-bold uppercase">
                 {gameState.isCrouching ? 'SILENT' : 'CROUCH'}
               </span>
             </button>
@@ -633,17 +721,18 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
 
           {/* Primary Action Button [E / INTERACT] */}
           <button
+            onTouchStart={handleTouchInteract}
             onClick={handleTouchInteract}
-            className={`w-20 h-20 rounded-full border-2 flex flex-col items-center justify-center shadow-2xl transition-all duration-150 active:scale-90 cursor-pointer backdrop-blur-md ${
+            className={`w-18 h-18 sm:w-20 sm:h-20 rounded-full border-2 flex flex-col items-center justify-center shadow-2xl transition-all duration-150 active:scale-90 cursor-pointer backdrop-blur-md ${
               currentInteractive || isHiding
                 ? 'bg-linear-to-b from-red-600 to-red-900 border-red-400 text-white shadow-[0_0_24px_rgba(220,38,38,0.8)] animate-pulse'
-                : 'bg-stone-950/80 border-stone-700 text-stone-400'
+                : 'bg-stone-950/85 border-stone-700 text-stone-400'
             }`}
             title="Interact (E)"
           >
-            <Hand className="w-7 h-7 mb-1" />
-            <span className="text-[10px] font-mono font-bold tracking-wider uppercase">
-              {isHiding ? 'EXIT' : currentInteractive ? 'ACTION' : '[ E ]'}
+            <Hand className="w-6 h-6 sm:w-7 sm:h-7 mb-0.5" />
+            <span className="text-[9px] sm:text-[10px] font-mono font-bold tracking-wider uppercase">
+              {isHiding ? 'EXIT' : currentInteractive ? 'ACTION' : 'USE'}
             </span>
           </button>
         </div>
@@ -753,9 +842,9 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onMainMen
         </div>
       )}
 
-      {/* 8. MINI INVENTORY ROW ON TOP RIGHT WHEN TOUCH IS ACTIVE */}
+      {/* 8. MINI INVENTORY ROW ON TOP WHEN TOUCH IS ACTIVE (Compact single-row horizontal layout) */}
       {touchEnabled && (
-        <div className="absolute top-20 left-4 md:left-6 flex flex-wrap items-center gap-1.5 pointer-events-auto max-w-md">
+        <div className="absolute top-14 sm:top-16 left-3 sm:left-5 flex flex-wrap items-center gap-1 pointer-events-none max-w-lg z-20">
           <div
             className={`flex items-center gap-1 px-2 py-0.5 rounded border backdrop-blur-sm text-xs ${
               gameState.hasPhotoFrame

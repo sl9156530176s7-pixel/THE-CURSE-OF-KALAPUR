@@ -42,14 +42,40 @@ export class PlayerController {
   // Interaction
   public currentInteractive: InteractiveObject | null = null;
   private raycaster = new THREE.Raycaster();
+  private domElement: HTMLElement;
+
+  // Reusable zero-GC scratch objects
+  private tmpMoveVec = new THREE.Vector3();
+  private tmpUpVec = new THREE.Vector3(0, 1, 0);
+  private tmpBoxX = new THREE.Box3();
+  private tmpBoxZ = new THREE.Box3();
+  private tmpBoxMin = new THREE.Vector3();
+  private tmpBoxMax = new THREE.Vector3();
+  private tmpScreenCenter = new THREE.Vector2(0, 0);
+  private tmpToObj = new THREE.Vector3();
+  private tmpLookDir = new THREE.Vector3();
+
+  // Bound handlers for clean disposal
+  private onKeyDownHandler!: (e: KeyboardEvent) => void;
+  private onKeyUpHandler!: (e: KeyboardEvent) => void;
+  private onMouseMoveHandler!: (e: MouseEvent) => void;
+  private onPointerLockChangeHandler!: () => void;
+  private onDomClickHandler!: () => void;
+  private onDomContextMenuHandler!: (e: MouseEvent) => void;
 
   constructor(camera: THREE.PerspectiveCamera, domElement: HTMLElement) {
     this.camera = camera;
+    this.domElement = domElement;
     this.camera.position.copy(this.position);
+
+    const isMobile =
+      typeof window !== 'undefined' &&
+      ('ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth < 1024);
 
     // Setup Flashlight (Powerful cinematic horror beam with crisp illumination of walls & roof)
     this.flashlight = new THREE.SpotLight(0xfffaed, 5.5, 34, Math.PI / 5, 0.35, 1.2);
     this.flashlight.castShadow = true;
+    this.flashlight.shadow.mapSize.set(isMobile ? 512 : 1024, isMobile ? 512 : 1024);
     this.flashlight.shadow.bias = -0.0008;
 
     this.flashlightTarget = new THREE.Object3D();
@@ -93,65 +119,69 @@ export class PlayerController {
   }
 
   private setupListeners(domElement: HTMLElement) {
-    // Keyboard
-    window.addEventListener('keydown', (e) => {
+    this.onKeyDownHandler = (e: KeyboardEvent) => {
       this.keys[e.code] = true;
 
-      // Toggle Flashlight
       if (e.code === 'KeyF') {
         this.toggleFlashlight();
       }
-
-      // Crouch Toggle
       if (e.code === 'KeyC') {
         gameState.isCrouching = !gameState.isCrouching;
         gameState.notify();
       }
-
-      // Interact (E)
       if (e.code === 'KeyE') {
         this.handleInteraction();
       }
-    });
+    };
 
-    window.addEventListener('keyup', (e) => {
+    this.onKeyUpHandler = (e: KeyboardEvent) => {
       this.keys[e.code] = false;
-    });
+    };
 
-    // Pointer Lock
-    domElement.addEventListener('click', () => {
-      if (!this.isLocked && gameState.isHiding === null) {
+    this.onDomClickHandler = () => {
+      if (!this.isLocked && gameState.isHiding === null && !gameState.isTouchDevice) {
         domElement.requestPointerLock?.();
       }
-    });
+    };
 
-    document.addEventListener('pointerlockchange', () => {
+    this.onPointerLockChangeHandler = () => {
       this.isLocked = document.pointerLockElement === domElement;
-    });
+    };
 
-    // Mouse Look with smooth damping
-    window.addEventListener('mousemove', (e) => {
+    this.onMouseMoveHandler = (e: MouseEvent) => {
       if (!this.isLocked && gameState.isHiding === null) return;
       const sens = 0.0022 * (gameState.settings.mouseSensitivity || 1.0);
 
       this.targetYaw -= e.movementX * sens;
       this.targetPitch -= e.movementY * sens;
-
-      // Limit pitch to prevent neck snapping
       this.targetPitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, this.targetPitch));
 
       if (gameState.isHiding) {
-        // Restrict looking around inside hiding spot
         this.targetYaw = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, this.targetYaw));
         this.targetPitch = Math.max(-Math.PI / 4, Math.min(Math.PI / 4, this.targetPitch));
       }
-    });
+    };
 
-    // Right click also toggles flashlight
-    domElement.addEventListener('contextmenu', (e) => {
+    this.onDomContextMenuHandler = (e: MouseEvent) => {
       e.preventDefault();
       this.toggleFlashlight();
-    });
+    };
+
+    window.addEventListener('keydown', this.onKeyDownHandler);
+    window.addEventListener('keyup', this.onKeyUpHandler);
+    window.addEventListener('mousemove', this.onMouseMoveHandler);
+    document.addEventListener('pointerlockchange', this.onPointerLockChangeHandler);
+    domElement.addEventListener('click', this.onDomClickHandler);
+    domElement.addEventListener('contextmenu', this.onDomContextMenuHandler);
+  }
+
+  public dispose() {
+    window.removeEventListener('keydown', this.onKeyDownHandler);
+    window.removeEventListener('keyup', this.onKeyUpHandler);
+    window.removeEventListener('mousemove', this.onMouseMoveHandler);
+    document.removeEventListener('pointerlockchange', this.onPointerLockChangeHandler);
+    this.domElement.removeEventListener('click', this.onDomClickHandler);
+    this.domElement.removeEventListener('contextmenu', this.onDomContextMenuHandler);
   }
 
   public toggleFlashlight() {
@@ -199,6 +229,28 @@ export class PlayerController {
     // 2. Held Photo Frame Visibility
     this.heldFrameMesh.visible = gameState.hasPhotoFrame && !gameState.framePlacedOnDoor && gameState.isHiding === null;
 
+    // 2B. Apply Touch Look (Mobile / Android Touch drag) even while hiding
+    const lookX = this.touchLook.x + gameState.touchLook.x;
+    const lookY = this.touchLook.y + gameState.touchLook.y;
+    if (lookX !== 0 || lookY !== 0) {
+      const touchSens = 0.0034 * (gameState.settings.mouseSensitivity || 1.0);
+      this.targetYaw -= lookX * touchSens;
+      this.targetPitch -= lookY * touchSens;
+      this.targetPitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, this.targetPitch));
+      if (gameState.isHiding !== null) {
+        this.targetYaw = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, this.targetYaw));
+        this.targetPitch = Math.max(-Math.PI / 4, Math.min(Math.PI / 4, this.targetPitch));
+      }
+      this.touchLook.x = 0;
+      this.touchLook.y = 0;
+      gameState.touchLook.x = 0;
+      gameState.touchLook.y = 0;
+    }
+
+    // Silky smooth camera look damping (eliminates touch micro-stutters)
+    this.yaw = THREE.MathUtils.damp(this.yaw, this.targetYaw, 28, delta);
+    this.pitch = THREE.MathUtils.damp(this.pitch, this.targetPitch, 28, delta);
+
     // 3. If player is hiding in wardrobe or under bed
     if (gameState.isHiding !== null) {
       this.camera.rotation.set(0, 0, 0);
@@ -233,37 +285,19 @@ export class PlayerController {
     const isMoving = Math.abs(moveX) > 0.05 || Math.abs(moveZ) > 0.05;
     this.isMoving = isMoving;
 
-    // Apply Touch Look (Mobile / Android Touch drag) with smooth target interpolation
-    const lookX = this.touchLook.x + gameState.touchLook.x;
-    const lookY = this.touchLook.y + gameState.touchLook.y;
-    if (lookX !== 0 || lookY !== 0) {
-      const touchSens = 0.0032 * (gameState.settings.mouseSensitivity || 1.0);
-      this.targetYaw -= lookX * touchSens;
-      this.targetPitch -= lookY * touchSens;
-      this.targetPitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, this.targetPitch));
-      this.touchLook.x = 0;
-      this.touchLook.y = 0;
-      gameState.touchLook.x = 0;
-      gameState.touchLook.y = 0;
-    }
-
-    // Silky smooth camera look damping (eliminates touch micro-stutters)
-    this.yaw = THREE.MathUtils.damp(this.yaw, this.targetYaw, 28, delta);
-    this.pitch = THREE.MathUtils.damp(this.pitch, this.targetPitch, 28, delta);
-
     let targetSpeed = this.walkSpeed;
     if (gameState.isSprinting) targetSpeed = this.sprintSpeed;
     if (gameState.isCrouching) targetSpeed = this.crouchSpeed;
 
-    const moveVector = new THREE.Vector3(moveX, 0, moveZ);
-    if (moveVector.lengthSq() > 0) {
-      moveVector.normalize();
-      moveVector.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
+    this.tmpMoveVec.set(moveX, 0, moveZ);
+    if (this.tmpMoveVec.lengthSq() > 0) {
+      this.tmpMoveVec.normalize();
+      this.tmpMoveVec.applyAxisAngle(this.tmpUpVec, this.yaw);
     }
 
     // Smooth velocity damping
-    const targetVelX = moveVector.x * targetSpeed;
-    const targetVelZ = moveVector.z * targetSpeed;
+    const targetVelX = this.tmpMoveVec.x * targetSpeed;
+    const targetVelZ = this.tmpMoveVec.z * targetSpeed;
     this.velocity.x = THREE.MathUtils.damp(this.velocity.x, targetVelX, 16, delta);
     this.velocity.z = THREE.MathUtils.damp(this.velocity.z, targetVelZ, 16, delta);
 
@@ -273,14 +307,13 @@ export class PlayerController {
 
     // Player bounding radius = 0.28m (Smooth sliding through doorways and corners)
     const playerRadius = 0.28;
-    const playerBoxX = new THREE.Box3(
-      new THREE.Vector3(nextX - playerRadius, this.position.y - 1.1, this.position.z - playerRadius),
-      new THREE.Vector3(nextX + playerRadius, this.position.y + 0.2, this.position.z + playerRadius)
-    );
-    const playerBoxZ = new THREE.Box3(
-      new THREE.Vector3(this.position.x - playerRadius, this.position.y - 1.1, nextZ - playerRadius),
-      new THREE.Vector3(this.position.x + playerRadius, this.position.y + 0.2, nextZ + playerRadius)
-    );
+    this.tmpBoxMin.set(nextX - playerRadius, this.position.y - 1.1, this.position.z - playerRadius);
+    this.tmpBoxMax.set(nextX + playerRadius, this.position.y + 0.2, this.position.z + playerRadius);
+    this.tmpBoxX.set(this.tmpBoxMin, this.tmpBoxMax);
+
+    this.tmpBoxMin.set(this.position.x - playerRadius, this.position.y - 1.1, nextZ - playerRadius);
+    this.tmpBoxMax.set(this.position.x + playerRadius, this.position.y + 0.2, nextZ + playerRadius);
+    this.tmpBoxZ.set(this.tmpBoxMin, this.tmpBoxMax);
 
     let collideX = false;
     let collideZ = false;
@@ -290,8 +323,8 @@ export class PlayerController {
       if (box.max.y < this.position.y - 1.2 || box.min.y > this.position.y + 0.3) {
         continue;
       }
-      if (box.intersectsBox(playerBoxX)) collideX = true;
-      if (box.intersectsBox(playerBoxZ)) collideZ = true;
+      if (box.intersectsBox(this.tmpBoxX)) collideX = true;
+      if (box.intersectsBox(this.tmpBoxZ)) collideZ = true;
     }
 
     if (!collideX) this.position.x = nextX;
@@ -338,8 +371,8 @@ export class PlayerController {
   }
 
   private checkInteractives(interactives: InteractiveObject[]) {
-    // Center of screen raycast
-    this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
+    this.raycaster.setFromCamera(this.tmpScreenCenter, this.camera);
+    this.camera.getWorldDirection(this.tmpLookDir);
     let closest: InteractiveObject | null = null;
     let closestDist = 2.8; // interaction reach (meters)
 
@@ -347,11 +380,8 @@ export class PlayerController {
       if (item.collected) continue;
       const dist = this.camera.position.distanceTo(item.position);
       if (dist < closestDist) {
-        // Check if looking towards object
-        const toObj = item.position.clone().sub(this.camera.position).normalize();
-        const dir = new THREE.Vector3();
-        this.camera.getWorldDirection(dir);
-        if (dir.dot(toObj) > 0.7) {
+        this.tmpToObj.copy(item.position).sub(this.camera.position).normalize();
+        if (this.tmpLookDir.dot(this.tmpToObj) > 0.7) {
           closestDist = dist;
           closest = item;
         }

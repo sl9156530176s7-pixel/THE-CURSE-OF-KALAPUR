@@ -37,7 +37,7 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({ onResume, onSave, onMainMe
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md select-none font-serif">
-      <div className="w-full max-w-sm bg-stone-950 border border-stone-800 p-8 rounded shadow-2xl text-center space-y-4">
+      <div className="w-full max-w-sm bg-stone-950 border border-stone-800 p-5 sm:p-7 rounded shadow-2xl text-center space-y-3 max-h-[92vh] overflow-y-auto">
         <div className="border-b border-stone-800 pb-4 mb-2">
           <span className="text-[10px] text-red-500 font-mono tracking-[0.3em] uppercase block mb-1">
             GAME PAUSED
@@ -108,7 +108,7 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({ onResume, onSave, onMainMe
       {/* Embedded Settings Modal */}
       {showSettings && (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/90">
-          <div className="w-full max-w-md bg-stone-950 border border-stone-800 p-6 rounded text-stone-200 space-y-4">
+          <div className="w-full max-w-md bg-stone-950 border border-stone-800 p-5 rounded text-stone-200 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-stone-800 pb-3">
               <h3 className="font-serif font-bold text-lg">SETTINGS</h3>
               <button onClick={() => setShowSettings(false)} className="cursor-pointer">
@@ -209,7 +209,7 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({ onResume, onSave, onMainMe
       {/* Embedded Controls Modal */}
       {showControls && (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/90">
-          <div className="w-full max-w-md bg-stone-950 border border-stone-800 p-6 rounded text-stone-200 space-y-4 font-sans text-xs">
+          <div className="w-full max-w-md bg-stone-950 border border-stone-800 p-5 rounded text-stone-200 space-y-4 font-sans text-xs max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-stone-800 pb-3 font-serif">
               <h3 className="font-bold text-lg">CONTROLS</h3>
               <button onClick={() => setShowControls(false)} className="cursor-pointer">

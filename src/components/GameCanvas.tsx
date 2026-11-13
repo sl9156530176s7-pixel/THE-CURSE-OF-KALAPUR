@@ -45,29 +45,32 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       return /SwiftShader|llvmpipe|softpipe|Software|Basic Render/i.test(gpu);
     })();
 
+    const isMobile =
+      'ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth < 1024;
+    gameState.isTouchDevice = isMobile;
+
     // Scene & Renderer
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x060810);
     scene.fog = new THREE.FogExp2(0x090b14, 0.022); // Crisp visibility of haveli walls and roof!
 
-    const camera = new THREE.PerspectiveCamera(
-      75,
-      container.clientWidth / container.clientHeight,
-      0.1,
-      80
-    );
+    const initW = Math.max(1, container.clientWidth);
+    const initH = Math.max(1, container.clientHeight);
+    const camera = new THREE.PerspectiveCamera(75, initW / initH, 0.1, 80);
 
     const renderer = new THREE.WebGLRenderer({
-      antialias: !isSoftwareGl,
+      antialias: !isSoftwareGl && !isMobile,
       powerPreference: 'high-performance',
     });
-    renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.setPixelRatio(isSoftwareGl ? 1 : Math.min(window.devicePixelRatio || 1, 1.5));
+    renderer.setSize(initW, initH);
+    renderer.setPixelRatio(
+      isSoftwareGl ? 1 : Math.min(window.devicePixelRatio || 1, isMobile ? 1.25 : 1.5)
+    );
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.25; // Clear and atmospheric illumination
     renderer.shadowMap.enabled = !isSoftwareGl;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = isMobile ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 
     container.appendChild(renderer.domElement);
 
@@ -78,6 +81,14 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // Build Kalapur House Architecture
     const houseData = buildKalapurHouse();
+    if (isMobile || gameState.settings.graphicsQuality !== 'high') {
+      // Prevent costly 6-pass PointLight cubemap shadows on mobile GPUs (keeps SpotLight/Moon shadows sharp)
+      houseData.root.traverse((obj) => {
+        if (obj instanceof THREE.PointLight) {
+          obj.castShadow = false;
+        }
+      });
+    }
     houseDataRef.current = houseData;
     scene.add(houseData.root);
 
@@ -96,7 +107,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     }
 
     // Monsoon Rain Particle System (Outdoors & Courtyard ONLY - Zero rain inside mansion rooms!)
-    const rainCount = 1200;
+    const rainCount = isMobile ? 450 : 1200;
     const rainGeo = new THREE.BufferGeometry();
     const rainPos = new Float32Array(rainCount * 3);
     for (let i = 0; i < rainCount; i++) {
@@ -124,7 +135,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     scene.add(rainParticles);
 
     // Atmospheric Haveli Floating Dust Motes (Indoors suspended motes catching flashlight)
-    const dustCount = 200;
+    const dustCount = isMobile ? 80 : 200;
     const dustGeo = new THREE.BufferGeometry();
     const dustPos = new Float32Array(dustCount * 3);
     for (let i = 0; i < dustCount; i++) {
@@ -392,11 +403,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     frameId = requestAnimationFrame(tick);
 
-    // Resize Handler
+    // Resize & Orientation Change Handler
     const handleResize = () => {
       if (!container) return;
-      const w = container.clientWidth;
-      const h = container.clientHeight;
+      const w = Math.max(1, container.clientWidth);
+      const h = Math.max(1, container.clientHeight);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       menuCam.aspect = w / h;
@@ -405,6 +416,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     };
 
     window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
 
     // Listen for custom escape event
     const handleEscaped = () => {
@@ -415,7 +427,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     return () => {
       cancelAnimationFrame(frameId);
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
       window.removeEventListener('kalapur:escaped', handleEscaped);
+      player.dispose();
       soundManager.stopTatyaTrack();
       renderer.dispose();
       if (container.contains(renderer.domElement)) {

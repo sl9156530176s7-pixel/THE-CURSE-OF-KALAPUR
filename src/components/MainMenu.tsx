@@ -58,17 +58,17 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onPlay, onContinue, onReplay
   };
 
   return (
-    <div className="absolute inset-0 z-40 flex flex-col justify-between p-6 md:p-12 select-none pointer-events-auto">
+    <div className="absolute inset-0 z-40 flex flex-col justify-between p-4 sm:p-6 md:p-10 select-none pointer-events-auto overflow-y-auto">
       {/* Dark Vignette Overlay for Menu Contrast over 3D Live Scene */}
-      <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/70 to-transparent pointer-events-none -z-10" />
+      <div className="fixed inset-0 bg-gradient-to-r from-black/95 via-black/70 to-transparent pointer-events-none -z-10" />
 
       {/* Top Header & Official Game Logo */}
-      <header className="flex flex-col md:flex-row justify-between items-start gap-4">
-        <div className="flex items-center gap-4">
+      <header className="flex flex-wrap justify-between items-center gap-3">
+        <div className="flex items-center gap-3">
           {/* Official Game Logo Thumbnail */}
           <div
             onClick={() => setShowLogoModal(true)}
-            className="w-40 md:w-56 aspect-video rounded border border-red-900/60 overflow-hidden shadow-[0_0_25px_rgba(200,0,0,0.5)] cursor-pointer group relative bg-black"
+            className="w-28 sm:w-40 md:w-52 aspect-video rounded border border-red-900/60 overflow-hidden shadow-[0_0_25px_rgba(200,0,0,0.5)] cursor-pointer group relative bg-black shrink-0"
             title="Click to view full official game logo"
           >
             <img
@@ -80,19 +80,19 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onPlay, onContinue, onReplay
           </div>
 
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-600 shadow-[0_0_10px_#ff0000]" />
-              <span className="text-red-500 font-mono text-[11px] tracking-[0.3em] uppercase font-bold">
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="w-2 h-2 rounded-full bg-red-600 shadow-[0_0_10px_#ff0000]" />
+              <span className="text-red-500 font-mono text-[10px] sm:text-[11px] tracking-[0.25em] uppercase font-bold">
                 STRANGE CREATION
               </span>
             </div>
             <h1
-              className="text-2xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-b from-stone-100 via-stone-300 to-red-600 tracking-wider drop-shadow-[0_4px_18px_rgba(200,0,0,0.6)]"
+              className="text-xl sm:text-2xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-b from-stone-100 via-stone-300 to-red-600 tracking-wider drop-shadow-[0_4px_18px_rgba(200,0,0,0.6)]"
               style={{ fontFamily: 'Cinzel, serif' }}
             >
               THE CURSE OF KALAPUR
             </h1>
-            <p className="text-stone-400 text-xs tracking-[0.25em] uppercase font-sans mt-0.5">
+            <p className="text-stone-400 text-[10px] sm:text-xs tracking-[0.2em] uppercase font-sans mt-0.5 hidden sm:block">
               Escape the house. Discover the truth.
             </p>
           </div>
@@ -136,21 +136,21 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onPlay, onContinue, onReplay
         </div>
       </header>
 
-      {/* Main Action Buttons */}
-      <nav className="my-auto max-w-sm space-y-3 z-10">
+      {/* Main Action Buttons (2-column compact layout on mobile landscape, vertical stack on desktop) */}
+      <nav className="my-3 md:my-auto w-full max-w-2xl md:max-w-sm grid grid-cols-2 md:grid-cols-1 gap-2 sm:gap-2.5 z-10">
         {/* Play Button */}
         <button
           onClick={() => {
             soundManager.playCinematicImpact();
             onPlay();
           }}
-          className="group w-full flex items-center justify-between px-6 py-4 bg-gradient-to-r from-red-950/80 to-stone-900/90 hover:from-red-900 hover:to-red-950 border border-red-700/60 hover:border-red-500 rounded text-stone-100 transition-all duration-200 cursor-pointer shadow-lg shadow-black/60 backdrop-blur-sm"
+          className="col-span-2 md:col-span-1 group w-full flex items-center justify-between px-5 py-3 md:py-4 bg-gradient-to-r from-red-950/90 to-stone-900/90 hover:from-red-900 hover:to-red-950 border border-red-700/70 hover:border-red-500 rounded text-stone-100 transition-all duration-200 cursor-pointer shadow-lg shadow-black/60 backdrop-blur-sm"
         >
           <div className="flex items-center gap-3">
             <Play className="w-5 h-5 text-red-400 group-hover:scale-110 transition-transform" />
-            <span className="text-lg font-bold tracking-[0.2em] uppercase font-serif">PLAY GAME</span>
+            <span className="text-base md:text-lg font-bold tracking-[0.2em] uppercase font-serif">PLAY GAME</span>
           </div>
-          <span className="text-xs text-red-400 tracking-widest opacity-80 group-hover:opacity-100">ENTER</span>
+          <span className="text-[11px] text-red-400 tracking-widest opacity-90">ENTER HORIZONTAL</span>
         </button>
 
         {/* Continue Button */}
@@ -161,31 +161,31 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onPlay, onContinue, onReplay
             onContinue();
           }}
           disabled={!hasSave}
-          className={`group w-full flex items-center justify-between px-6 py-3.5 border rounded transition-all duration-200 shadow-md ${
+          className={`group w-full flex items-center justify-between px-4 py-2.5 md:px-6 md:py-3.5 border rounded transition-all duration-200 shadow-md ${
             hasSave
               ? 'bg-stone-900/80 hover:bg-stone-800/90 border-stone-700 hover:border-stone-500 text-stone-200 cursor-pointer'
               : 'bg-stone-950/50 border-stone-800/40 text-stone-600 cursor-not-allowed opacity-50'
           }`}
         >
-          <div className="flex items-center gap-3">
-            <RotateCcw className="w-4 h-4 text-stone-400" />
-            <span className="text-sm font-semibold tracking-[0.15em] uppercase font-serif">CONTINUE</span>
+          <div className="flex items-center gap-2.5">
+            <RotateCcw className="w-4 h-4 text-stone-400 shrink-0" />
+            <span className="text-xs md:text-sm font-semibold tracking-[0.12em] uppercase font-serif">CONTINUE</span>
           </div>
-          <span className="text-[10px] tracking-widest text-stone-500 uppercase">
-            {hasSave ? 'CHECKPOINT READY' : 'NO SAVED PROGRESS'}
+          <span className="text-[9px] tracking-wider text-stone-500 uppercase hidden sm:inline">
+            {hasSave ? 'READY' : 'EMPTY'}
           </span>
         </button>
 
         {/* View Official Game Logo Modal */}
         <button
           onClick={() => setShowLogoModal(true)}
-          className="group w-full flex items-center justify-between px-6 py-3 bg-stone-950/80 hover:bg-stone-900/90 border border-red-950 hover:border-red-800/70 rounded text-stone-300 transition-all duration-200 cursor-pointer shadow-md backdrop-blur-sm"
+          className="group w-full flex items-center justify-between px-4 py-2.5 md:px-6 md:py-3 bg-stone-950/80 hover:bg-stone-900/90 border border-red-950 hover:border-red-800/70 rounded text-stone-300 transition-all duration-200 cursor-pointer shadow-md backdrop-blur-sm"
         >
-          <div className="flex items-center gap-3">
-            <ImageIcon className="w-4 h-4 text-red-400" />
-            <span className="text-sm font-semibold tracking-[0.15em] uppercase font-serif">OFFICIAL LOGO</span>
+          <div className="flex items-center gap-2.5">
+            <ImageIcon className="w-4 h-4 text-red-400 shrink-0" />
+            <span className="text-xs md:text-sm font-semibold tracking-[0.12em] uppercase font-serif">OFFICIAL LOGO</span>
           </div>
-          <span className="text-[10px] tracking-widest text-red-400 uppercase">16:9 4K ART</span>
+          <span className="text-[9px] tracking-wider text-red-400 uppercase hidden sm:inline">4K ART</span>
         </button>
 
         {/* Settings Button */}
@@ -194,13 +194,13 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onPlay, onContinue, onReplay
             soundManager.playItemPickup();
             setShowSettings(true);
           }}
-          className="group w-full flex items-center justify-between px-6 py-3 bg-stone-950/70 hover:bg-stone-900/80 border border-stone-800 hover:border-stone-600 rounded text-stone-300 transition-all duration-200 cursor-pointer shadow-md backdrop-blur-sm"
+          className="group w-full flex items-center justify-between px-4 py-2.5 md:px-6 md:py-3 bg-stone-950/70 hover:bg-stone-900/80 border border-stone-800 hover:border-stone-600 rounded text-stone-300 transition-all duration-200 cursor-pointer shadow-md backdrop-blur-sm"
         >
-          <div className="flex items-center gap-3">
-            <Settings className="w-4 h-4 text-stone-400 group-hover:rotate-45 transition-transform" />
-            <span className="text-sm font-semibold tracking-[0.15em] uppercase font-serif">SETTINGS</span>
+          <div className="flex items-center gap-2.5">
+            <Settings className="w-4 h-4 text-stone-400 group-hover:rotate-45 transition-transform shrink-0" />
+            <span className="text-xs md:text-sm font-semibold tracking-[0.12em] uppercase font-serif">SETTINGS</span>
           </div>
-          <span className="text-[10px] tracking-widest text-stone-500 uppercase">AUDIO / VIDEO</span>
+          <span className="text-[9px] tracking-wider text-stone-500 uppercase hidden sm:inline">AUDIO / GPU</span>
         </button>
 
         {/* How to Play Button */}
@@ -209,13 +209,13 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onPlay, onContinue, onReplay
             soundManager.playItemPickup();
             setShowHowToPlay(true);
           }}
-          className="group w-full flex items-center justify-between px-6 py-3 bg-stone-950/70 hover:bg-stone-900/80 border border-stone-800 hover:border-stone-600 rounded text-stone-300 transition-all duration-200 cursor-pointer shadow-md backdrop-blur-sm"
+          className="group w-full flex items-center justify-between px-4 py-2.5 md:px-6 md:py-3 bg-stone-950/70 hover:bg-stone-900/80 border border-stone-800 hover:border-stone-600 rounded text-stone-300 transition-all duration-200 cursor-pointer shadow-md backdrop-blur-sm"
         >
-          <div className="flex items-center gap-3">
-            <HelpCircle className="w-4 h-4 text-stone-400" />
-            <span className="text-sm font-semibold tracking-[0.15em] uppercase font-serif">HOW TO PLAY</span>
+          <div className="flex items-center gap-2.5">
+            <HelpCircle className="w-4 h-4 text-stone-400 shrink-0" />
+            <span className="text-xs md:text-sm font-semibold tracking-[0.12em] uppercase font-serif">HOW TO PLAY</span>
           </div>
-          <span className="text-[10px] tracking-widest text-stone-500 uppercase">CONTROLS &amp; STEALTH</span>
+          <span className="text-[9px] tracking-wider text-stone-500 uppercase hidden sm:inline">GUIDE</span>
         </button>
 
         {/* Replay Cinematic Intro */}
@@ -223,7 +223,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onPlay, onContinue, onReplay
           onClick={() => {
             onReplayIntro();
           }}
-          className="group w-full flex items-center justify-between px-6 py-2.5 bg-transparent hover:bg-stone-900/40 border border-stone-800/40 hover:border-stone-700/60 rounded text-stone-400 text-xs tracking-widest uppercase transition-all duration-200 cursor-pointer"
+          className="col-span-2 md:col-span-1 group w-full flex items-center justify-between px-4 py-2 bg-transparent hover:bg-stone-900/40 border border-stone-800/40 hover:border-stone-700/60 rounded text-stone-400 text-[11px] tracking-widest uppercase transition-all duration-200 cursor-pointer"
         >
           <span>REPLAY INTRO SCENE</span>
           <span className="text-stone-600 group-hover:text-red-400">46s</span>
@@ -231,16 +231,16 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onPlay, onContinue, onReplay
       </nav>
 
       {/* Footer System Info */}
-      <footer className="flex flex-col md:flex-row justify-between items-start md:items-end text-xs text-stone-500 border-t border-stone-800/40 pt-4 gap-2">
+      <footer className="flex flex-wrap justify-between items-center text-[10px] sm:text-xs text-stone-500 border-t border-stone-800/40 pt-2 gap-2">
         <div>
-          <span>THE CURSE OF KALAPUR • PC Horror Edition</span>
-          <span className="mx-2">•</span>
+          <span>THE CURSE OF KALAPUR • Android &amp; PC</span>
+          <span className="mx-1.5">•</span>
           <span className="text-stone-400">Headphones Recommended</span>
         </div>
         <div className="text-stone-400">
           <span>Developed by <strong className="text-stone-200">STRANGE CREATION</strong></span>
-          <span className="mx-2">•</span>
-          <span>Founder: <strong className="text-stone-200">Soham Dnyaneshwar Lokhande</strong></span>
+          <span className="mx-1.5">•</span>
+          <span>Creator: <strong className="text-stone-200">Soham Dnyaneshwar Lokhande</strong></span>
         </div>
       </footer>
 
@@ -252,7 +252,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onPlay, onContinue, onReplay
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-lg bg-stone-950 border border-stone-800 p-6 md:p-8 rounded shadow-2xl text-stone-200"
+              className="w-full max-w-lg bg-stone-950 border border-stone-800 p-5 md:p-8 rounded shadow-2xl text-stone-200 max-h-[90vh] overflow-y-auto"
             >
               <div className="flex justify-between items-center border-b border-stone-800 pb-4 mb-6">
                 <div className="flex items-center gap-2">
@@ -516,7 +516,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onPlay, onContinue, onReplay
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-4xl bg-stone-950 border border-stone-800 p-6 md:p-8 rounded shadow-2xl text-stone-200"
+              className="w-full max-w-4xl bg-stone-950 border border-stone-800 p-5 md:p-8 rounded shadow-2xl text-stone-200 max-h-[90vh] overflow-y-auto"
             >
               <div className="flex justify-between items-center border-b border-stone-800 pb-3 mb-4">
                 <div>
