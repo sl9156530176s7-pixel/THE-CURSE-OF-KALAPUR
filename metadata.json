@@ -1,0 +1,6 @@
+{
+  "name": "The Curse of Kalapur",
+  "description": "A 3D Indian horror escape game by Strange Creation (Founder: Soham Dnyaneshwar Lokhande). Survive Kalapur House, evade the roaming ghost, and unlock the escape.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
