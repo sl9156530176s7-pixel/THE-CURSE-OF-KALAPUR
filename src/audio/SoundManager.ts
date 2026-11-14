@@ -1553,6 +1553,89 @@ class SoundManager {
     this.playFootstep(true, 0, surface);
   }
 
+  // Sacred Vibhuti Tantric Stun Flash Blast
+  public playStunBlast() {
+    if (!this.ctx || !this.sfxGain) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(1180, now);
+    osc.frequency.exponentialRampToValueAtTime(220, now + 0.55);
+    gain.gain.setValueAtTime(0.45, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(now);
+    osc.stop(now + 0.62);
+    this.playNoiseSwoosh(0.5, 0.35);
+    this.playTantricSealBreak();
+  }
+
+  // Distorted puppet / spirit shriek when stunned
+  public playVillainStunnedGroan() {
+    if (!this.ctx || !this.sfxGain) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(290, now);
+    osc.frequency.exponentialRampToValueAtTime(68, now + 1.15);
+    gain.gain.setValueAtTime(0.4, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(now);
+    osc.stop(now + 1.25);
+  }
+
+  // Player anxious heavy breathing during chases or low stamina
+  public playHeavyBreathing(intensity = 0.5) {
+    if (!this.ctx || !this.sfxGain) return;
+    const now = this.ctx.currentTime;
+    const noiseBuffer = this.createNoiseBuffer();
+    if (!noiseBuffer) return;
+    const src = this.ctx.createBufferSource();
+    src.buffer = noiseBuffer;
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(520, now);
+    filter.Q.setValueAtTime(2.5, now);
+    const gain = this.ctx.createGain();
+    const peak = Math.max(0.06, Math.min(0.24, intensity * 0.22));
+    gain.gain.setValueAtTime(0.005, now);
+    gain.gain.linearRampToValueAtTime(peak, now + 0.18);
+    gain.gain.exponentialRampToValueAtTime(0.004, now + 0.55);
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.sfxGain);
+    src.start(now);
+    src.stop(now + 0.6);
+  }
+
+  // Spooky distant floorboard creak / unexplained house rattle
+  public playPhantomCreak(pan = 0) {
+    if (!this.ctx || !this.sfxGain) return;
+    const now = this.ctx.currentTime;
+    const panner = this.ctx.createStereoPanner();
+    panner.pan.setValueAtTime(Math.max(-1, Math.min(1, pan)), now);
+    panner.connect(this.sfxGain);
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(145 + Math.random() * 45, now);
+    osc.frequency.linearRampToValueAtTime(92, now + 0.35);
+    osc.frequency.linearRampToValueAtTime(125, now + 0.65);
+    gain.gain.setValueAtTime(0.005, now);
+    gain.gain.linearRampToValueAtTime(0.11, now + 0.2);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.72);
+    osc.connect(gain);
+    gain.connect(panner);
+    osc.start(now);
+    osc.stop(now + 0.76);
+  }
+
   public dispose() {
     this.stopDrone();
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);

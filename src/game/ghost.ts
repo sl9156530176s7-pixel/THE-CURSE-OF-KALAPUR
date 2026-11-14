@@ -29,10 +29,12 @@ export class KalapurGhost {
   // AI Timers & memory
   private stateTimer = 0;
   public sightKillTimer = 0;
+  public stunTimer = 0;
   private lastKnownPlayerPos: THREE.Vector3 = new THREE.Vector3();
   private hasDirectVision = false;
   private footstepTimer = 0;
   private floatOffset = 0;
+  private tmpSearchSpot: THREE.Vector3 = new THREE.Vector3();
 
   // Meshes for animation
   private headMesh: THREE.Mesh;
@@ -563,9 +565,55 @@ export class KalapurGhost {
 
     const isTatya = gameState.settings.villainType === 'tatya';
     const diff = gameState.settings.difficulty || 'normal';
-    const speedMult = diff === 'hardcore' ? 1.28 : diff === 'nightmare' ? 1.15 : 1.0;
-    const hearingMult = diff === 'hardcore' ? 1.35 : diff === 'nightmare' ? 1.18 : 1.0;
+    const dayScale = 1 + (gameState.currentDay - 1) * 0.08;
+    const speedMult = (diff === 'hardcore' ? 1.26 : diff === 'nightmare' ? 1.14 : 1.0) * dayScale;
+    const hearingMult = (diff === 'hardcore' ? 1.32 : diff === 'nightmare' ? 1.16 : 1.0) * dayScale;
     const sightKillThreshold = diff === 'hardcore' ? 0.68 : diff === 'nightmare' ? 0.85 : 1.05;
+
+    // 00. Sacred Vibhuti Stun State: freezes villain completely in trembling crouch
+    if (this.stunTimer > 0) {
+      this.stunTimer = Math.max(0, this.stunTimer - delta);
+      gameState.villainStunTimer = this.stunTimer;
+      this.currentSpeed = 0;
+      this.sightKillTimer = 0;
+      this.state = 'patrol';
+      gameState.ghostState = 'patrol';
+      gameState.ghostAlertLevel = 0;
+      gameState.screenGlitchIntensity = 0;
+      this.eyesLight.color.setHex(0xf59e0b);
+      this.eyesLight.intensity = 1.2 + Math.sin(performance.now() * 0.03) * 0.7;
+
+      const tremble = Math.sin(performance.now() * 0.045) * 0.14;
+      if (isTatya) {
+        this.tatyaHead.rotation.z = tremble;
+        this.tatyaHead.rotation.x = 0.32;
+        this.tatyaJaw.rotation.x = 0;
+        this.tatyaLeftArm.rotation.x = 0.6;
+        this.tatyaRightArm.rotation.x = 0.6;
+      } else {
+        this.headMesh.rotation.z = tremble;
+        this.headMesh.rotation.x = 0.28;
+      }
+
+      if (this.stunTimer === 0) {
+        this.eyesLight.color.setHex(0xff1100);
+        this.eyesLight.intensity = 2.5;
+        if (isTatya) {
+          this.tatyaHead.rotation.x = 0;
+          soundManager.playTatyaVoiceChant(0, true);
+        } else {
+          this.headMesh.rotation.x = 0;
+        }
+        soundManager.playPuppetScreech();
+        gameState.showSubtitle(
+          isTatya ? "Tatya Vinchu shakes off the Vibhuti ash! 'OM PHAT SWAHA!'" : 'The Kalapur Ghost shrieks back into the hunt!',
+          3200
+        );
+        gameState.notify();
+      }
+      return;
+    }
+    gameState.villainStunTimer = 0;
 
     // Villain Breaker Sabotage: cuts power to plunge haveli into darkness periodically
     if (gameState.breakerPowerOn && this.state !== 'chase' && this.position.y >= -0.6) {
@@ -756,19 +804,39 @@ export class KalapurGhost {
         if (this.position.distanceTo(this.targetPosition) < 1.4 || this.stateTimer > 6.5) {
           this.state = 'search';
           this.stateTimer = 0;
+          // Pick nearest wardrobe/bed hiding place on current floor to inspect!
+          this.tmpSearchSpot.copy(this.position);
+          if (interactives) {
+            let bestDist = 11.0;
+            for (const item of interactives) {
+              if (item.type === 'hiding' && Math.abs(item.position.y - this.position.y) < 2.2) {
+                const d = item.position.distanceTo(this.position);
+                if (d < bestDist) {
+                  bestDist = d;
+                  this.tmpSearchSpot.copy(item.position);
+                }
+              }
+            }
+          }
         }
         break;
       }
 
       case 'search': {
-        this.currentSpeed = this.patrolSpeed * 0.35 * speedMult;
+        this.currentSpeed = this.patrolSpeed * 0.65 * speedMult;
         gameState.ghostState = 'search';
-        gameState.ghostAlertLevel = 0.4;
+        gameState.ghostAlertLevel = 0.45;
 
-        // Unnatural mechanical head snap looking around
+        // Walk toward nearest hiding place / wardrobe while scanning suspiciously
         const headTurn = Math.sin(this.stateTimer * 2.8) * 0.8;
         this.tatyaHead.rotation.y = headTurn;
         this.headMesh.rotation.y = headTurn;
+
+        if (this.tmpSearchSpot.distanceTo(this.position) > 1.8) {
+          this.moveToward(this.tmpSearchSpot, delta, colliders);
+        } else {
+          this.currentSpeed = 0;
+        }
 
         if (ghostHearsNoise) {
           this.investigatePosition(playerPos);
@@ -780,7 +848,7 @@ export class KalapurGhost {
           break;
         }
 
-        if (this.stateTimer > 4.5) {
+        if (this.stateTimer > 5.0) {
           this.state = 'patrol';
           this.stateTimer = 0;
           this.selectNextWaypoint();
@@ -794,11 +862,17 @@ export class KalapurGhost {
         this.eyesLight.color.set(0xff0000);
         this.eyesLight.intensity = 5.0;
 
-        // If player hid while ghost was chasing
+        // If player hid while ghost was chasing, check hiding spot if saw them hide point-blank (<2.4m)!
         if (isPlayerHiding) {
+          if (distToPlayer < 2.3) {
+            this.sightKillTimer = 0;
+            onCatchPlayer();
+            return;
+          }
           this.sightKillTimer = 0;
           this.state = 'search';
           this.stateTimer = 0;
+          this.tmpSearchSpot.copy(playerPos);
           this.targetPosition.copy(playerPos);
           soundManager.setMusicMood('tense');
           break;
@@ -828,6 +902,7 @@ export class KalapurGhost {
         if (!this.hasDirectVision && this.stateTimer > 5.0) {
           this.state = 'search';
           this.stateTimer = 0;
+          this.tmpSearchSpot.copy(this.lastKnownPlayerPos);
           soundManager.setMusicMood('explore');
         }
         break;
@@ -992,6 +1067,17 @@ export class KalapurGhost {
     this.mesh.position.set(this.position.x, this.position.y, this.position.z);
   }
 
+  public stun(duration = 9.0) {
+    this.stunTimer = Math.max(this.stunTimer, duration);
+    gameState.villainStunTimer = this.stunTimer;
+    this.sightKillTimer = 0;
+    this.state = 'patrol';
+    soundManager.playVillainStunnedGroan();
+    soundManager.setMusicMood('explore');
+    soundManager.setHeartbeatRate(75, false);
+    gameState.notify();
+  }
+
   public resetToStart() {
     if (this.waypoints.length > 0) {
       this.position.copy(this.waypoints[0]);
@@ -1004,8 +1090,11 @@ export class KalapurGhost {
     this.state = 'patrol';
     this.stateTimer = 0;
     this.sightKillTimer = 0;
+    this.stunTimer = 0;
+    gameState.villainStunTimer = 0;
     this.hasDirectVision = false;
     this.currentWaypointIndex = 0;
+    this.eyesLight.color.setHex(0xff1100);
     this.eyesLight.intensity = 2.0;
     this.isChantingDialogue = false;
     this.lastSpottedDialogueTime = 0;

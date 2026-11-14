@@ -273,6 +273,7 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({ onResume, onSave, onMainMe
               <div className="flex justify-between"><span className="text-stone-400">WASD</span><span>Move</span></div>
               <div className="flex justify-between"><span className="text-stone-400">Mouse</span><span>Look Around</span></div>
               <div className="flex justify-between"><span className="text-stone-400">E</span><span>Interact / Hide / Secret Shelf / Breaker</span></div>
+              <div className="flex justify-between"><span className="text-stone-400">G</span><span>Scatter Sacred Vibhuti (Stun Villain 9s)</span></div>
               <div className="flex justify-between"><span className="text-stone-400">Q</span><span>Throw Brass Decoy Lota (Lure Villain)</span></div>
               <div className="flex justify-between"><span className="text-stone-400">Tab</span><span>Floor Blueprint Map &amp; 3 Escapes</span></div>
               <div className="flex justify-between"><span className="text-stone-400">Shift</span><span>Sprint (Drains Stamina)</span></div>

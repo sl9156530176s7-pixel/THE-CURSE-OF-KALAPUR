@@ -2945,5 +2945,97 @@ export function createBasementSignTexture(): THREE.CanvasTexture {
   return createTextureFromCanvas(canvas);
 }
 
+// 38. Clear Vintage Directional Plaque for Multi-Floor & Passage Navigation
+export function createFloorSignTexture(
+  title: string,
+  subtitle: string,
+  accentHex = '#fbbf24'
+): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 160;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#14110f';
+  ctx.fillRect(0, 0, 512, 160);
+  ctx.strokeStyle = '#92400e';
+  ctx.lineWidth = 8;
+  ctx.strokeRect(6, 6, 500, 148);
+  ctx.strokeStyle = accentHex;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(16, 16, 480, 128);
+
+  ctx.fillStyle = '#fef3c7';
+  ctx.font = 'bold 31px Cinzel, serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(title, 256, 74);
+
+  ctx.fillStyle = accentHex;
+  ctx.font = 'bold 19px monospace';
+  ctx.fillText(subtitle, 256, 116);
+
+  return createTextureFromCanvas(canvas);
+}
+
+// 39. Translucent Dusty Corner Cobweb Texture
+export function createCobwebTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d')!;
+  ctx.clearRect(0, 0, 256, 256);
+
+  ctx.strokeStyle = 'rgba(226, 232, 240, 0.42)';
+  ctx.lineWidth = 1.6;
+  const cx = 16;
+  const cy = 16;
+  const rays = 8;
+  for (let i = 0; i <= rays; i++) {
+    const angle = (i / rays) * (Math.PI / 2);
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(angle) * 235, cy + Math.sin(angle) * 235);
+    ctx.stroke();
+  }
+  for (let r = 36; r <= 220; r += 34) {
+    ctx.beginPath();
+    for (let i = 0; i <= rays; i++) {
+      const angle = (i / rays) * (Math.PI / 2);
+      const px = cx + Math.cos(angle) * r;
+      const py = cy + Math.sin(angle) * r;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.quadraticCurveTo(
+        cx + Math.cos(angle - 0.1) * (r - 12),
+        cy + Math.sin(angle - 0.1) * (r - 12),
+        px,
+        py
+      );
+    }
+    ctx.stroke();
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+// 40. Soft Radial Contact Shadow Texture for Grounded Furniture & Car Realism
+export function createContactShadowTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d')!;
+  const grad = ctx.createRadialGradient(64, 64, 8, 64, 64, 62);
+  grad.addColorStop(0, 'rgba(0, 0, 0, 0.72)');
+  grad.addColorStop(0.55, 'rgba(0, 0, 0, 0.35)');
+  grad.addColorStop(1, 'rgba(0, 0, 0, 0.0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 128, 128);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  return tex;
+}
+
 
 

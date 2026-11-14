@@ -36,6 +36,9 @@ import {
   createStrangeCreationLogoTexture,
   createHauntedPaintingTexture,
   createBasementSignTexture,
+  createFloorSignTexture,
+  createCobwebTexture,
+  createContactShadowTexture,
 } from './textures';
 
 export type InteractiveType =
@@ -44,6 +47,7 @@ export type InteractiveType =
   | 'frame'
   | 'battery'
   | 'decoy_pickup'
+  | 'stun_pickup'
   | 'diary'
   | 'hiding'
   | 'switch'
@@ -109,14 +113,20 @@ export interface HouseData {
 }
 
 /**
- * Multi-Level Floor Height Calculator (Three Full Vertical Levels: -3.0 Crypt, 0.0 Ground, +4.5 Upper)
+ * Multi-Level Floor Height Calculator (4 Vertical Levels: -3.0 Crypt, 0.0 Ground, +4.5 Upper 2F, +8.8 Attic 3F)
  * feetY is always the entity's foot elevation so jumping never clips between floors.
  */
 export function getMansionFloorHeight(x: number, z: number, feetY: number): number {
   // 1. Central Grand Staircase: Z = 7.5 (Y=0) ascending North to Z = -1.5 (Y=4.5)
-  if (Math.abs(x) <= 2.15 && z >= -1.8 && z <= 7.8 && feetY >= -0.8) {
+  if (Math.abs(x) <= 2.15 && z >= -1.8 && z <= 7.8 && feetY >= -0.8 && feetY <= 4.9) {
     const progress = (7.5 - z) / 9.0;
     return Math.max(0, Math.min(4.5, progress * 4.5));
+  }
+
+  // 1B. Floor 2 -> Floor 3 Attic Staircase (West Upper Wing): Z = 7.0 (Y=4.5) ascending North to Z = 0.6 (Y=8.8)
+  if (x >= -7.45 && x <= -4.55 && z >= 0.4 && z <= 7.25 && feetY >= 3.6 && feetY <= 9.2) {
+    const progress = (7.0 - z) / 6.4;
+    return 4.5 + Math.max(0, Math.min(1, progress)) * 4.3;
   }
 
   // 2. Crypt / Basement Staircase (Storage Wing West Alcove): Z = 0.0 (Y=0) descending North to Z = -7.0 (Y=-3.0)
@@ -130,7 +140,12 @@ export function getMansionFloorHeight(x: number, z: number, feetY: number): numb
     return -3.0;
   }
 
-  // 4. Upper Level Rooms (Y = 4.5)
+  // 3B. 3rd Floor Grand Attic & Doll Workshop (Y = 8.8)
+  if (feetY >= 7.1 && x >= -12.6 && x <= 12.6 && z >= -12.6 && z <= 8.4) {
+    return 8.8;
+  }
+
+  // 4. Upper 2nd Floor Level Rooms (Y = 4.5)
   if (feetY >= 2.8) {
     if (Math.abs(x) <= 4.2 && z >= -8.5 && z <= 8.5) return 4.5;
     if (x >= 3.0 && x <= 20.5 && z >= -8.0 && z <= 8.0) return 4.5;
@@ -140,7 +155,7 @@ export function getMansionFloorHeight(x: number, z: number, feetY: number): numb
     if (x >= -16.5 && x <= -7.5 && z >= -16.5 && z <= -7.5) return 4.5;
   }
 
-  // 5. Ground Level, East Garage & Courtyard
+  // 5. Ground Level (+ North Trophy Corridor), East Garage & Courtyard
   return 0.0;
 }
 
@@ -318,16 +333,17 @@ export function buildKalapurHouse(): HouseData {
   // East Garage Oil-Stained Concrete Floor (X: 12..24, Z: 17..31)
   addFloor(18, 0.006, 24, 12, 14, garageWallMat);
 
-  // Ground Floors under Upper North Wings (outside Crypt footprint)
-  addFloor(2, 0, -14, 16, 12, stoneMat);
+  // Ground Floor under Open North Trophy Gallery (X: -14.5 .. +20.0, Z: -20 .. -8)
+  addFloor(2.75, 0, -14, 34.5, 12, stoneMat);
 
   // Ground Ceilings (Y = 4.3, Leaving Central Stairwell Open)
   addCeiling(13, 4.3, 4.5, 14, 25);
   addCeiling(-13, 4.3, 4.5, 14, 25);
   addCeiling(0, 4.3, 12.25, 12, 9.5);
+  addCeiling(2.75, 4.3, -14, 34.5, 12);
 
   // =========================================================================
-  // 3. UPPER FLOOR STRUCTURE (Y = 4.5 + SECRET ARCHIVE ALCOVE)
+  // 3. UPPER FLOOR 2 (Y = 4.5) + FLOOR 3 ATTIC & DOLL WORKSHOP (Y = 8.8)
   // =========================================================================
   addFloor(0, 4.5, -4.75, 8, 6.5, woodFloorMat);
   addFloor(-2.9, 4.5, 3.0, 1.8, 9.0, woodFloorMat);
@@ -337,7 +353,7 @@ export function buildKalapurHouse(): HouseData {
   addFloor(12, 4.5, 0, 16, 16, woodFloorMat);
   addFloor(-12, 4.5, 0, 16, 16, woodFloorMat);
   addFloor(0, 4.5, -14, 16, 12, marbleFloorMat); // Mystic Sanctum Marble
-  // NEW Secret Library-to-Sanctum Archive Passage (X: -16..-8, Z: -16..-8, Y = 4.5)
+  // Secret Library-to-Sanctum Archive Passage (X: -16..-8, Z: -16..-8, Y = 4.5)
   addFloor(-12, 4.5, -12, 8, 8, woodFloorMat);
 
   // Mystic Sanctum Glowing Crimson Tantric Mandala Floor Seal
@@ -349,43 +365,82 @@ export function buildKalapurHouse(): HouseData {
   mandalaMesh.position.set(0, 4.525, -14);
   root.add(mandalaMesh);
 
-  // Upper Ceilings (Y = 8.6) & Wada Pitched Roof
+  // Upper 2F Ceilings (Y = 8.6) — Split cleanly around 3F Attic Stairwell Opening (X: -7.4..-4.6, Z: 0.4..7.2)
   addCeiling(0, 8.6, 0, 8, 17);
   addCeiling(12, 8.6, 0, 16, 16);
-  addCeiling(-12, 8.6, 0, 16, 16);
+  addCeiling(-12, 8.6, -3.8, 16, 8.4);   // North of Attic Stairs
+  addCeiling(-13.7, 8.6, 4.2, 12.6, 7.6); // West of Attic Stairs
+  addCeiling(-4.3, 8.6, 4.2, 0.6, 7.6);   // East lip of Attic Stairs
+  addCeiling(-6.0, 8.6, 7.6, 2.8, 0.8);   // South lip of Attic Stairs
   addCeiling(0, 8.6, -14, 16, 12);
   addCeiling(-12, 8.6, -12, 8, 8);
 
-  const roofSlopeWest = new THREE.Mesh(new THREE.PlaneGeometry(23, 40), roofTilesMat);
-  roofSlopeWest.rotation.set(0, 0, 0.28);
-  roofSlopeWest.position.set(-10.5, 10.2, -1.5);
+  // 3rd Floor Grand Attic Plank Floor (Y = 8.8, X: -12..+12, Z: -12..+8) with Stairwell Opening
+  addFloor(0, 8.8, -5.8, 24, 12.4, woodFloorMat);      // Z: -12 .. 0.4
+  addFloor(-9.7, 8.8, 4.2, 4.6, 7.6, woodFloorMat);   // X: -12 .. -7.4, Z: 0.4 .. 8
+  addFloor(3.7, 8.8, 4.2, 16.6, 7.6, woodFloorMat);   // X: -4.6 .. 12, Z: 0.4 .. 8
+  addFloor(-6.0, 8.8, 7.6, 2.8, 0.8, woodFloorMat);   // South lip
+
+  // Floor 3 Staircase Steps (X = -6.0, width 2.4, Z = 6.8 Y=4.5 ascending North -> Z = 0.6 Y=8.8)
+  const atticSteps = 18;
+  for (let s = 0; s < atticSteps; s++) {
+    const sy = 4.5 + (s + 0.5) * (4.3 / atticSteps);
+    const sz = 6.8 - s * (6.2 / atticSteps);
+    const step = new THREE.Mesh(new THREE.BoxGeometry(2.35, 0.22, 0.42), darkTeakMat);
+    step.position.set(-6.0, sy, sz);
+    step.receiveShadow = true;
+    root.add(step);
+  }
+
+  // Floor 3 Attic Stair Safety Guardrails around Stairwell Hole
+  const atticRailW = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.05, 6.9), brassMat);
+  atticRailW.position.set(-7.38, 9.32, 3.85);
+  root.add(atticRailW);
+  colliders.push(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(-7.38, 9.35, 3.85), new THREE.Vector3(0.22, 1.3, 6.9)));
+
+  const atticRailE = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.05, 6.9), brassMat);
+  atticRailE.position.set(-4.62, 9.32, 3.85);
+  root.add(atticRailE);
+  colliders.push(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(-4.62, 9.35, 3.85), new THREE.Vector3(0.22, 1.3, 6.9)));
+
+  const atticRailS = new THREE.Mesh(new THREE.BoxGeometry(2.9, 1.05, 0.14), brassMat);
+  atticRailS.position.set(-6.0, 9.32, 7.28);
+  root.add(atticRailS);
+  colliders.push(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(-6.0, 9.35, 7.28), new THREE.Vector3(2.9, 1.3, 0.22)));
+
+  // High Pitched Timber Roof Over 3F Attic (Standing headroom up to Y = 15.6m!)
+  const roofSlopeWest = new THREE.Mesh(new THREE.PlaneGeometry(15.5, 23), roofTilesMat);
+  roofSlopeWest.rotation.set(0, 0, 0.34);
+  roofSlopeWest.position.set(-7.0, 13.4, -2.0);
   root.add(roofSlopeWest);
 
-  const roofSlopeEast = new THREE.Mesh(new THREE.PlaneGeometry(23, 40), roofTilesMat);
-  roofSlopeEast.rotation.set(0, 0, -0.28);
-  roofSlopeEast.position.set(10.5, 10.2, -1.5);
+  const roofSlopeEast = new THREE.Mesh(new THREE.PlaneGeometry(15.5, 23), roofTilesMat);
+  roofSlopeEast.rotation.set(0, 0, -0.34);
+  roofSlopeEast.position.set(7.0, 13.4, -2.0);
   root.add(roofSlopeEast);
 
-  const roofRidge = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 40), darkTeakMat);
-  roofRidge.position.set(0, 12.0, -1.5);
+  const roofRidge = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.55, 23), darkTeakMat);
+  roofRidge.position.set(0, 15.8, -2.0);
   root.add(roofRidge);
 
-  const atticSlab = new THREE.Mesh(new THREE.BoxGeometry(42, 0.3, 39), darkTeakMat);
-  atticSlab.position.set(0, 8.75, -1.5);
-  root.add(atticSlab);
-
   // =========================================================================
-  // 4. GROUND FLOOR WALLS, HAVELI COLONNADES & BREAKER BOX
+  // 4. GROUND FLOOR WALLS, HAVELI COLONNADES, OPEN NORTH CORRIDOR & BREAKER
   // =========================================================================
   const WH = 4.2;
   const TH = 0.4;
 
-  // South Foyer Entrance Wall (exit door center X=0, Z=17)
-  addWall(-4.5, 0, 17, 7, WH, TH);
-  addWall(4.5, 0, 17, 7, WH, TH);
-  addWall(0, 3.2, 17, 2, 1.0, TH);
+  // South Facade Wall (Z = 17): Grand Exit Door + WIDE OPEN Kitchen & Puja Courtyard Verandahs (Removed Wall #2!)
+  addWall(-15.9, 0, 17, 8.2, WH, TH);  // Kitchen SW corner (X: -20.0 .. -11.8)
+  addWall(-9.0, 3.1, 17, 5.6, 1.1, TH); // Open Kitchen -> Courtyard Verandah Archway Lintel (X: -11.8 .. -6.2)
+  addWall(-3.6, 0, 17, 5.2, WH, TH);   // Foyer SW Wall (X: -6.2 .. -1.0)
+  addWall(0, 3.2, 17, 2.0, 1.0, TH);   // Exit Door Lintel (X: -1.0 .. +1.0)
+  addWall(3.7, 0, 17, 5.4, WH, TH);    // Foyer SE Wall (X: +1.0 .. +6.4)
+  addWall(9.0, 3.1, 17, 5.2, 1.1, TH);  // Open Puja -> Courtyard Verandah Archway Lintel (X: +6.4 .. +11.6)
+  addWall(12.0, 0, 17, 0.8, WH, TH);   // Courtyard-Garage Corner Pier (X: 11.6 .. 12.4)
+  addWall(15.3, 3.1, 17, 5.8, 1.1, TH); // Open Puja -> East Garage Archway Lintel (X: +12.4 .. +18.2)
+  addWall(19.1, 0, 17, 1.8, WH, TH);   // Garage NW Pier (X: 18.2 .. 20.0)
 
-  // Open Haveli Colonnade Pillars
+  // Open Haveli Colonnade Pillars (Central Foyer + Replaced Z = -8 Solid Wall!)
   for (const pz of [2.0, 6.0, 10.0, 14.5]) {
     for (const px of [-6.0, 6.0]) {
       const pGroup = new THREE.Group();
@@ -401,11 +456,29 @@ export function buildKalapurHouse(): HouseData {
       colliders.push(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(px, 2.0, pz), new THREE.Vector3(0.55, 4.0, 0.55)));
     }
   }
+  for (const px of [-6.0, 6.0, 13.5]) {
+    const pGroup = new THREE.Group();
+    pGroup.position.set(px, 0, -8.0);
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.4, 0.55), stoneMat);
+    base.position.y = 0.2;
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 3.4, 8), darkTeakMat);
+    shaft.position.y = 2.1;
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.35, 0.65), darkTeakMat);
+    cap.position.y = 3.95;
+    pGroup.add(base, shaft, cap);
+    root.add(pGroup);
+    colliders.push(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(px, 2.0, -8.0), new THREE.Vector3(0.55, 4.0, 0.55)));
+  }
 
-  // Main Ground Outer Walls
-  addWall(20, 0, 4.5, TH, WH, 25);
-  addWall(-20, 0, 4.5, TH, WH, 25);
-  addWall(0, 0, -8, 40, WH, TH);
+  // Main Ground Outer Walls — REMOVED WALL #1 (Z = -8 open from X = -14.3 .. +19.8 into Grand North Wing!)
+  addWall(20, 0, -1.5, TH, WH, 37);     // Full Continuous East Outer Wall (Z: -20 .. +17)
+  addWall(-20, 0, 4.5, TH, WH, 25);     // West Outer Wall (Z: -8 .. +17)
+  addWall(-17.25, 0, -8, 5.5, WH, TH);  // Shields Basement Stairwell Shaft behind stairs (X: -20 .. -14.5)
+  addWall(2.75, 3.85, -8, 34.5, 0.45, TH); // Open Overhead Beam along Z = -8 (walk freely underneath!)
+
+  // Open Ground Floor NORTH TROPHY GALLERY Outer Enclosure (X: -14.5 .. +20.0, Z: -20 .. -8)
+  addWall(-14.5, 0, -14, TH, WH, 12);
+  addWall(2.75, 0, -20, 34.5, WH, TH);
 
   // --- MAIN ELECTRICAL BREAKER FUSE BOX (Grand Foyer East Side X=5.6, Y=1.45, Z=14.5) ---
   const breakerGroup = new THREE.Group();
@@ -435,16 +508,12 @@ export function buildKalapurHouse(): HouseData {
   });
 
   // Puja Prayer Room (East Wing South, Z: 10.5..17, X: 6..20)
-  // Plus a Side Service Doorway at X = 15, Z = 17 leading directly into the East Garage!
   addWall(9.5, 0, 10.5, 7.0, WH, TH);
   addWall(17.5, 0, 10.5, 5.0, WH, TH);
   addWall(13.5, 2.8, 10.5, 2.5, 1.4, TH);
-  addWall(10.0, 0, 17, 8.0, WH, TH);   // X: 6..14
-  addWall(18.0, 0, 17, 4.0, WH, TH);   // X: 16..20
-  addWall(15.0, 2.8, 17, 2.0, 1.4, TH); // Garage service doorway lintel at X: 14..16
 
   const pujaAltar = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.9, 1.0), darkTeakMat);
-  pujaAltar.position.set(11.5, 0.45, 16.0);
+  pujaAltar.position.set(17.5, 0.45, 15.8);
   root.add(pujaAltar);
   colliders.push(new THREE.Box3().setFromObject(pujaAltar));
 
@@ -487,8 +556,7 @@ export function buildKalapurHouse(): HouseData {
   root.add(candleGlow);
   flickerLights.push(candleGlow);
 
-  // Haunted Kitchen & Storage Room (West Wing) — clean 2.0m Kitchen doorway at X: -13..-11, Z = 5.0
-  addWall(-13, 0, 17, 14, WH, TH);
+  // Kitchen North Doorway (Z = 5.0)
   addWall(-16.5, 0, 5.0, 7.0, WH, TH);
   addWall(-8.5, 0, 5.0, 5.0, WH, TH);
   addWall(-12.0, 2.8, 5.0, 2.0, 1.4, TH);
@@ -674,19 +742,26 @@ export function buildKalapurHouse(): HouseData {
   root.add(mezRailS);
   colliders.push(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(0, 5.05, 8.2), new THREE.Vector3(4.0, 1.2, 0.2)));
 
-  // Upper Floor Walls
+  // Upper Floor 2 Walls — Sealed Bedroom Doors & Open South Gallery Archway Z: 5.2 .. 8.0 into Floor 3 Attic Stairs!
   const UWH = 4.1;
-  addWall(-3.8, 4.5, -4.5, TH, UWH, 5);
-  addWall(-3.8, 4.5, 4.5, TH, UWH, 5);
-  addWall(-3.8, 7.2, 0.0, TH, 1.3, 3);
+  addWall(-3.8, 4.5, -4.4, TH, UWH, 7.2);   // Z: -8.0 .. -0.8 (Seals Guest Door West side)
+  addWall(-3.8, 4.5, 3.0, TH, UWH, 4.4);    // Z: +0.8 .. +5.2 (Leaves Z: 5.2..8.0 open to 3F Attic Stairs!)
+  addWall(-3.8, 7.2, 6.6, TH, 1.4, 2.8);    // Attic Stairway Arch Lintel
+  addWall(-3.8, 7.2, 0.0, TH, 1.4, 1.6);    // Guest Door Lintel
 
-  addWall(3.8, 4.5, -4.5, TH, UWH, 5);
-  addWall(3.8, 4.5, 4.5, TH, UWH, 5);
-  addWall(3.8, 7.2, 0.0, TH, 1.3, 3);
+  addWall(3.8, 4.5, -4.4, TH, UWH, 7.2);    // Z: -8.0 .. -0.8 (Seals Master Door East side!)
+  addWall(3.8, 4.5, 4.4, TH, UWH, 7.2);     // Z: +0.8 .. +8.0 (Seals Master Door East side!)
+  addWall(3.8, 7.2, 0.0, TH, 1.4, 1.6);     // Master Door Lintel
 
   addWall(-2.2, 4.5, -8, 2.5, UWH, TH);
   addWall(2.2, 4.5, -8, 2.5, UWH, TH);
   addWall(0, 7.2, -8, 2, 1.3, TH);
+
+  // 3rd Floor Attic Perimeter Knee & Gable Walls (Y = 8.8)
+  addWall(-12, 8.8, -2.0, TH, 3.5, 20);
+  addWall(12, 8.8, -2.0, TH, 3.5, 20);
+  addWall(0, 8.8, -12, 24, 4.5, TH);
+  addWall(0, 8.8, 8, 24, 4.5, TH);
 
   // Master Bedchamber & Nursery (East Upper)
   addWall(20, 4.5, 0, TH, UWH, 16);
@@ -1086,6 +1161,8 @@ export function buildKalapurHouse(): HouseData {
   createWardrobe('hide-guest-wardrobe', 'Carved Wooden Wardrobe', -17, 4.5, 4.5, 0);
   createCharpaiBed('hide-guest-bed', 'Guest Charpai Bed', -12, 4.5, 3.5);
   createWardrobe('hide-foyer-closet', 'Foyer Cloak Almirah', -4.2, 0, 2.0, Math.PI / 2);
+  createWardrobe('hide-north-wardrobe', 'Trophy Hall Almirah', -3.8, 0, -17.5, 0);
+  createWardrobe('hide-attic-wardrobe', 'Attic Dust Trunk Closet', 9.8, 8.8, -8.5, -Math.PI / 2);
 
   // Living Room Suite: Plush Velvet Diwan, Armchairs, Brass Coffee Table + Tea Tray, Tall Shelf & Gramophone
   const velvetRedMat = new THREE.MeshStandardMaterial({ color: 0x6b141a, roughness: 0.85 });
@@ -1368,7 +1445,7 @@ export function buildKalapurHouse(): HouseData {
     colliders.push(new THREE.Box3().setFromObject(cCase));
   }
   createGrandfatherClock(18.5, 0, 4.5, -Math.PI / 4);
-  createGrandfatherClock(-3.2, 4.5, 2.5, Math.PI / 2);
+  createGrandfatherClock(-3.1, 4.5, -6.5, Math.PI / 2);
 
   // Official STRANGE CREATION Memorial Brass Plaque
   const plaquePedestal = new THREE.Group();
@@ -1470,34 +1547,38 @@ export function buildKalapurHouse(): HouseData {
     root.add(g);
   }
 
-  // Grand Foyer & Staircase Walls
-  addPastedWallPortrait(4.5, 2.3, 16.77, Math.PI, 1.15, 1.45, tatyaPhotoTex);
-  addPastedWallPortrait(-4.5, 2.3, 16.77, Math.PI, 1.15, 1.45, tatyaEyesTex);
-  addPastedWallPortrait(0, 3.2, -7.77, 0, 1.5, 1.8, famTex, true);
-  addPastedWallPortrait(-4.0, 2.3, -7.77, 0, 1.35, 1.0, paintTextures[0]);
-  addPastedWallPortrait(4.0, 2.3, -7.77, 0, 1.35, 1.0, paintTextures[5]);
+  // Grand Foyer South Entrance & Staircase Walls
+  addPastedWallPortrait(3.7, 2.3, 16.77, Math.PI, 1.15, 1.45, tatyaPhotoTex);
+  addPastedWallPortrait(-3.6, 2.3, 16.77, Math.PI, 1.15, 1.45, tatyaEyesTex);
+
+  // Open North Trophy Gallery Walls (Z = -19.77, X = -14.27, X = 19.77) — zero floating paintings!
+  addPastedWallPortrait(-14.27, 2.3, -13.5, Math.PI / 2, 1.45, 1.08, paintTextures[3], true);
+  addPastedWallPortrait(-8.5, 2.3, -19.77, 0, 1.5, 1.12, paintTextures[2], true); // River boat clue!
+  addPastedWallPortrait(-2.5, 2.3, -19.77, 0, 1.45, 1.08, famTex, true);
+  addPastedWallPortrait(3.5, 2.3, -19.77, 0, 1.5, 1.85, tatyaPhotoTex, true);
+  addPastedWallPortrait(9.5, 2.3, -19.77, 0, 1.45, 1.08, wedTex, true);
+  addPastedWallPortrait(15.5, 2.3, -19.77, 0, 1.35, 1.0, paintTextures[0]);
+  addPastedWallPortrait(19.77, 2.3, -13.5, -Math.PI / 2, 1.45, 1.08, purvajaTex);
 
   // Living Room & Dining Hall (East Ground Wing)
   addPastedWallPortrait(19.77, 2.3, 3.6, -Math.PI / 2, 1.25, 1.55, tatyaDaggerTex);
   addPastedWallPortrait(10.0, 2.3, 1.73, 0, 1.45, 1.08, paintTextures[1], true);
   addPastedWallPortrait(16.0, 2.3, 10.27, Math.PI, 1.45, 1.08, paintTextures[0]);
-  addPastedWallPortrait(13.5, 2.4, -7.77, 0, 1.55, 1.15, wedTex, true);
   addPastedWallPortrait(19.77, 2.4, -3.5, -Math.PI / 2, 1.45, 1.08, purvajaTex);
   addPastedWallPortrait(9.2, 2.3, 1.27, Math.PI, 1.4, 1.05, paintTextures[4]);
 
   // Puja Prayer Room & Garage
-  addPastedWallPortrait(13.5, 2.3, 16.77, Math.PI, 1.3, 1.6, tatyaShrineTex, true);
-  addPastedWallPortrait(19.77, 2.3, 13.5, -Math.PI / 2, 1.45, 1.08, paintTextures[4]);
+  addPastedWallPortrait(19.77, 2.3, 15.0, -Math.PI / 2, 1.3, 1.6, tatyaShrineTex, true);
+  addPastedWallPortrait(19.77, 2.3, 12.2, -Math.PI / 2, 1.3, 1.0, paintTextures[4]);
   addPastedWallPortrait(9.0, 2.3, 10.73, 0, 1.4, 1.05, paintTextures[5]);
   addPastedWallPortrait(23.77, 2.1, 22.0, -Math.PI / 2, 1.6, 1.2, paintTextures[3], true);
-  addPastedWallPortrait(20.5, 2.1, 17.23, 0, 1.5, 1.12, paintTextures[0]);
+  addPastedWallPortrait(21.2, 2.1, 17.23, 0, 1.5, 1.12, paintTextures[0]);
 
   // Kitchen, Storage Wing & Basement Entrance Walls (West Ground Wing)
-  addPastedWallPortrait(-13.5, 2.3, 16.77, Math.PI, 1.45, 1.08, paintTextures[5]);
+  addPastedWallPortrait(-15.9, 2.3, 16.77, Math.PI, 1.45, 1.08, paintTextures[5]);
   addPastedWallPortrait(-19.77, 2.3, 11.2, Math.PI / 2, 1.45, 1.08, paintTextures[1]);
   addPastedWallPortrait(-9.0, 2.3, 5.23, 0, 1.35, 1.0, paintTextures[0]);
-  addPastedWallPortrait(-13.5, 2.3, -7.77, 0, 1.25, 1.55, tatyaArchiveTex);
-  addPastedWallPortrait(-9.0, 2.3, -7.77, 0, 1.5, 1.12, paintTextures[2], true); // River boat clue!
+  addPastedWallPortrait(-17.2, 2.3, -7.77, 0, 1.25, 1.55, tatyaArchiveTex);
   addPastedWallPortrait(-9.0, 2.3, 4.77, Math.PI, 1.4, 1.05, paintTextures[4]);
 
   // Subterranean Basement / River Crypt Walls (Y = -3.0)
@@ -1521,6 +1602,13 @@ export function buildKalapurHouse(): HouseData {
   addPastedWallPortrait(-4.2, 6.5, -19.77, 0, 1.3, 1.6, ancTex);
   addPastedWallPortrait(4.2, 6.5, -19.77, 0, 1.45, 1.08, paintTextures[4], true);
   addPastedWallPortrait(7.77, 6.5, -14.0, -Math.PI / 2, 1.45, 1.08, paintTextures[0]);
+
+  // 3rd Floor Attic Doll Workshop Paintings (Y = 8.8)
+  addPastedWallPortrait(0, 10.9, -11.77, 0, 1.6, 1.85, tatyaEyesTex, true);
+  addPastedWallPortrait(-6.0, 10.8, -11.77, 0, 1.35, 1.6, dollTwinsTex);
+  addPastedWallPortrait(6.0, 10.8, -11.77, 0, 1.45, 1.08, paintTextures[3], true);
+  addPastedWallPortrait(2.5, 10.8, 7.77, Math.PI, 1.45, 1.08, paintTextures[4]);
+  addPastedWallPortrait(-11.77, 10.6, -4.0, Math.PI / 2, 1.25, 1.55, annabelleTex);
 
   // =========================================================================
   // 9. DRAWER TABLES & 3-ESCAPE TOOL SHUFFLE (100% ACCESSIBLE POOL!)
@@ -1735,6 +1823,8 @@ export function buildKalapurHouse(): HouseData {
     ['batt-kitchen', -14.5, 1.1, 11],
     ['batt-garage', 22.0, 0.95, 25.0],
     ['batt-crypt', -18.5, -2.0, -12.5],
+    ['batt-north', 2.5, 0.56, -16.5],
+    ['batt-attic', 7.5, 9.65, -4.5],
   ];
   for (const [bid, bx, by, bz] of extraBatteries) {
     const bg = new THREE.Group();
@@ -1759,6 +1849,7 @@ export function buildKalapurHouse(): HouseData {
     ['decoy-foyer', -3.2, 0.95, 13.5],
     ['decoy-secret', -10.5, 4.95, -13.5],
     ['decoy-garage', 15.0, 0.95, 20.0],
+    ['decoy-attic', -1.8, 9.65, -7.0],
   ];
   for (const [did, dx, dy, dz] of decoyPickups) {
     const dg = new THREE.Group();
@@ -1778,6 +1869,34 @@ export function buildKalapurHouse(): HouseData {
       prompt: 'Pick up Brass Decoy Lota [E]',
       action: () => {
         dg.visible = false;
+      },
+    });
+  }
+
+  // Sacred Vibhuti Stun Ash Pouches (Stuns Tatya / Ghost for 9 seconds via [G] / STUN!)
+  const stunMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0xd97706, emissiveIntensity: 0.45, roughness: 0.4 });
+  const stunPickups: [string, number, number, number][] = [
+    ['stun-puja', 17.8, 0.98, 15.8],
+    ['stun-attic', -8.8, 9.68, -6.5],
+  ];
+  for (const [sid, sx, sy, sz] of stunPickups) {
+    const sg = new THREE.Group();
+    sg.position.set(sx, sy, sz);
+    const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.09, 0.1, 12), brassMat);
+    const ash = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.12, 10), stunMat);
+    ash.position.y = 0.08;
+    sg.add(bowl, ash);
+    attachItemGlint(sg, 0xfbbf24, 0.22);
+    root.add(sg);
+    interactives.push({
+      id: sid,
+      type: 'stun_pickup',
+      name: 'Sacred Vibhuti Pouch (+1 Stun)',
+      position: new THREE.Vector3(sx, sy, sz),
+      mesh: sg,
+      prompt: 'Collect Sacred Vibhuti Stun Ash [E]',
+      action: () => {
+        sg.visible = false;
       },
     });
   }
@@ -1826,9 +1945,10 @@ export function buildKalapurHouse(): HouseData {
   createDiaryItem('diary1', "Zamindar's Final Journal", 13, 0.65, 7);
   createDiaryItem('diary2', 'Secret Library Archive', -12, 4.95, -11);
   createDiaryItem('diary3', 'Breaker & Curse Warning', 0.8, 5.55, -17);
+  createDiaryItem('diary4', "Attic Dollmaker's Confession", -8.8, 9.65, -7.2);
 
   // =========================================================================
-  // 10. ATMOSPHERIC NOCTURNAL LIGHTING & ROCKING CHAIR
+  // 10. ATMOSPHERIC LIGHTING, CHANDELIERS, UTENSILS, NORTH LOUNGE, 3F ATTIC & SIGNS
   // =========================================================================
   const hemiLight = new THREE.HemisphereLight(0x283e63, 0x060405, 0.42);
   root.add(hemiLight);
@@ -1854,11 +1974,166 @@ export function buildKalapurHouse(): HouseData {
   addLantern(13, 3.2, 10, 0xff7722, 1.2, 9);
   addLantern(-13, 3.0, 10, 0xff6622, 0.9, 8);
   addLantern(-13, 3.0, -2, 0xff5511, 0.9, 8);
+  addLantern(2.5, 3.1, -14, 0xf59e0b, 1.35, 11);   // North Trophy Corridor Glow
   addLantern(0, 7.0, 0, 0xff7733, 1.3, 10);
   addLantern(11, 7.0, 0, 0xff6622, 1.1, 9);
-  addLantern(-11, 7.0, 0, 0x60a5fa, 1.0, 9); // Cold moonlight library accent
-  addLantern(-12, 6.8, -12, 0xf59e0b, 1.1, 8); // Secret Archive glow
-  addLantern(0, 6.8, -14, 0xdc2626, 1.75, 12); // Ritual crimson sanctum
+  addLantern(-11, 7.0, 0, 0x60a5fa, 1.0, 9);       // Cold moonlight library accent
+  addLantern(-12, 6.8, -12, 0xf59e0b, 1.1, 8);     // Secret Archive glow
+  addLantern(0, 6.8, -14, 0xdc2626, 1.75, 12);     // Ritual crimson sanctum
+  addLantern(-7.0, 11.4, -4.5, 0xf59e0b, 1.35, 11); // 3F Attic Workshop lantern
+  addLantern(5.5, 11.4, 2.0, 0x93c5fd, 1.15, 11);   // 3F Attic Observatory moonlight
+
+  // Vintage Brass Chandeliers (Foyer & Dining Hall)
+  for (const [chX, chY, chZ] of [
+    [0, 3.65, 12.2],
+    [13.5, 3.65, -3.5],
+  ] as [number, number, number][]) {
+    const ch = new THREE.Group();
+    ch.position.set(chX, chY, chZ);
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.65, 8), brassMat);
+    stem.position.y = 0.32;
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.45, 0.03, 8, 18), brassMat);
+    ring.rotation.x = Math.PI / 2;
+    ch.add(stem, ring);
+    for (let k = 0; k < 4; k++) {
+      const a = (k / 4) * Math.PI * 2;
+      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.055, 6, 6), new THREE.MeshBasicMaterial({ color: 0xfef08a }));
+      bulb.position.set(Math.cos(a) * 0.45, 0.06, Math.sin(a) * 0.45);
+      ch.add(bulb);
+    }
+    root.add(ch);
+  }
+
+  // Indian Kitchen Brass Thalis, Handi & Clay Matka Water Pitcher
+  const clayMat = new THREE.MeshStandardMaterial({ color: 0x9a3412, roughness: 0.85 });
+  const matkaBody = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 12), clayMat);
+  matkaBody.position.set(-14.6, 1.08, 9.5);
+  const matkaNeck = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.14, 0.1, 10), clayMat);
+  matkaNeck.position.set(-14.6, 1.32, 9.5);
+  const steelThali = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.2, 0.03, 16), steelMat);
+  steelThali.position.set(-13.8, 0.97, 9.4);
+  const brassHandi = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 10), brassMat);
+  brassHandi.position.set(-12.2, 1.08, 15.0);
+  root.add(matkaBody, matkaNeck, steelThali, brassHandi);
+
+  // North Trophy Gallery Furnishings (X: -14.5..+20.0, Z: -20..-8, Y = 0)
+  const northCarpet = new THREE.Mesh(new THREE.PlaneGeometry(18.0, 7.6), carpetMat);
+  northCarpet.rotation.x = -Math.PI / 2;
+  northCarpet.position.set(3.0, 0.025, -14.0);
+  root.add(northCarpet);
+
+  const northTable = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.08, 1.2), darkTeakMat);
+  northTable.position.set(2.5, 0.52, -16.5);
+  root.add(northTable);
+  colliders.push(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(2.5, 0.3, -16.5), new THREE.Vector3(2.4, 0.6, 1.2)));
+
+  const northSofa = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.65, 3.2), velvetRedMat);
+  northSofa.position.set(17.5, 0.325, -14.5);
+  root.add(northSofa);
+  colliders.push(new THREE.Box3().setFromObject(northSofa));
+
+  // 3rd Floor Attic Doll Workshop & Observatory Furnishings (Y = 8.8)
+  const atticWorktable = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.85, 1.2), darkTeakMat);
+  atticWorktable.position.set(-8.8, 9.225, -6.8);
+  root.add(atticWorktable);
+  colliders.push(new THREE.Box3().setFromObject(atticWorktable));
+
+  const atticDisplayTable = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.82, 1.1), darkTeakMat);
+  atticDisplayTable.position.set(-1.5, 9.21, -7.0);
+  root.add(atticDisplayTable);
+  colliders.push(new THREE.Box3().setFromObject(atticDisplayTable));
+
+  const atticObsTable = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.82, 1.1), darkTeakMat);
+  atticObsTable.position.set(7.5, 9.21, -4.5);
+  root.add(atticObsTable);
+  colliders.push(new THREE.Box3().setFromObject(atticObsTable));
+
+  // Creepy Toppled/Broken Chair & Wooden Storage Trunks in Attic
+  const brokenChair = new THREE.Group();
+  brokenChair.position.set(-2.5, 9.05, 1.2);
+  brokenChair.rotation.set(0.35, 0.4, 1.1);
+  brokenChair.add(new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.08, 0.65), darkTeakMat));
+  const brokenBack = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.75, 0.08), darkTeakMat);
+  brokenBack.position.set(0, 0.4, -0.28);
+  brokenChair.add(brokenBack);
+  root.add(brokenChair);
+
+  for (const [cx, cy, cz, sx, sy, sz] of [
+    [-10.6, 8.8, 4.0, 1.2, 0.75, 0.85],
+    [10.2, 8.8, 3.2, 1.3, 0.85, 0.9],
+    [4.5, 8.8, -10.5, 1.4, 0.8, 0.9],
+  ] as [number, number, number, number, number, number][]) {
+    const trunk = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), darkTeakMat);
+    trunk.position.set(cx, cy + sy / 2, cz);
+    root.add(trunk);
+    colliders.push(new THREE.Box3().setFromObject(trunk));
+  }
+
+  // Soft Grounded Contact Shadows beneath Major Furniture & 1954 Sedan
+  const contactShadowMat = new THREE.MeshBasicMaterial({
+    map: createContactShadowTexture(),
+    transparent: true,
+    opacity: 0.48,
+    depthWrite: false,
+  });
+  for (const [shX, shY, shZ, shW, shD] of [
+    [18.0, 0.02, 24.0, 3.2, 5.4],
+    [13.5, 0.03, -3.5, 4.8, 2.5],
+    [13.0, 0.03, 8.6, 4.2, 2.0],
+    [17.5, 0.03, 15.8, 2.6, 1.6],
+    [12.0, 4.53, 4.0, 3.2, 4.0],
+    [-12.0, 4.53, 3.5, 3.2, 4.0],
+  ] as [number, number, number, number, number][]) {
+    const sh = new THREE.Mesh(new THREE.PlaneGeometry(shW, shD), contactShadowMat);
+    sh.rotation.x = -Math.PI / 2;
+    sh.position.set(shX, shY, shZ);
+    root.add(sh);
+  }
+
+  // Translucent Corner Cobwebs across Haveli, Crypt & 3F Attic
+  const cobwebMat = new THREE.MeshBasicMaterial({
+    map: createCobwebTexture(),
+    transparent: true,
+    opacity: 0.65,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  for (const [wx, wy, wz, ry] of [
+    [-5.7, 3.6, 16.4, Math.PI * 0.25],
+    [5.7, 3.6, 16.4, -Math.PI * 0.25],
+    [-11.2, 11.4, -11.2, Math.PI * 0.25],
+    [11.2, 11.4, -11.2, -Math.PI * 0.25],
+    [-19.5, -0.9, -7.6, Math.PI * 0.25],
+  ] as [number, number, number, number][]) {
+    const web = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), cobwebMat);
+    web.position.set(wx, wy, wz);
+    web.rotation.y = ry;
+    root.add(web);
+  }
+
+  // Clear Vintage Directional Plaques (Zero Confusion Navigation!)
+  function addDirectionalPlaque(
+    x: number,
+    y: number,
+    z: number,
+    rotY: number,
+    title: string,
+    subtitle: string,
+    accentHex = '#fbbf24'
+  ) {
+    const plaque = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.3, 0.72),
+      new THREE.MeshBasicMaterial({ map: createFloorSignTexture(title, subtitle, accentHex) })
+    );
+    plaque.position.set(x, y, z);
+    plaque.rotation.y = rotY;
+    root.add(plaque);
+  }
+  addDirectionalPlaque(2.75, 3.45, -19.75, 0, 'OPEN NORTH TROPHY HALL', 'DINING LOOP • HIDE & SUPPLIES', '#fbbf24');
+  addDirectionalPlaque(-9.0, 3.45, 16.75, Math.PI, 'OPEN COURTYARD ARCH ▼', 'WELL • GARAGE • IRON GATE', '#34d399');
+  addDirectionalPlaque(9.0, 3.45, 16.75, Math.PI, 'COURTYARD & GARAGE ▼', '1954 CAR & IRON GATE', '#34d399');
+  addDirectionalPlaque(-3.55, 7.4, 6.6, Math.PI / 2, 'FLOOR 3: ATTIC LOFT ▲', 'DOLL WORKSHOP • STUN ASH & LORE', '#f87171');
+  addDirectionalPlaque(0, 7.6, -7.76, 0, 'MYSTIC SANCTUM ▲', 'ANCESTOR PHOTO FRAME ALTAR', '#ef4444');
 
   // Haunted Rocking Chair
   const rockingChair = new THREE.Group();
@@ -1873,42 +2148,51 @@ export function buildKalapurHouse(): HouseData {
   colliders.push(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(17.5, 0.6, 7.5), new THREE.Vector3(1.2, 1.2, 1.2)));
 
   // =========================================================================
-  // 11. MULTI-LEVEL VILLAIN PATROL WAYPOINTS (Covers Upper, Ground, Garage & Crypt!)
+  // 11. MULTI-LEVEL VILLAIN PATROL WAYPOINTS (4 Vertical Tiers: Crypt, 1F, 2F & 3F Attic!)
   // =========================================================================
   const ghostWaypoints: THREE.Vector3[] = [
-    new THREE.Vector3(0, 4.5, -14),       // Mystic Sanctum Altar
+    new THREE.Vector3(0, 4.5, -14),       // Mystic Sanctum Altar (2F)
     new THREE.Vector3(0, 4.5, -9.0),
     new THREE.Vector3(0, 4.5, -4.5),
     new THREE.Vector3(3.8, 4.5, 0.0),
-    new THREE.Vector3(12.0, 4.5, -4.0),   // Doll Nursery
-    new THREE.Vector3(12.0, 4.5, 4.5),    // Master Bedroom
+    new THREE.Vector3(12.0, 4.5, -4.0),   // Doll Nursery (2F)
+    new THREE.Vector3(12.0, 4.5, 4.5),    // Master Bedroom (2F)
     new THREE.Vector3(3.8, 4.5, 0.0),
     new THREE.Vector3(0, 4.5, 2.0),
-    new THREE.Vector3(-3.8, 4.5, 0.0),
-    new THREE.Vector3(-12.0, 4.5, 3.5),   // Guest Bedroom
-    new THREE.Vector3(-12.0, 4.5, -4.0),  // Old Library
+    new THREE.Vector3(-3.8, 4.5, 6.5),    // Climb Up to 3F Attic Workshop!
+    new THREE.Vector3(-6.0, 4.5, 6.8),
+    new THREE.Vector3(-6.0, 8.8, 0.5),
+    new THREE.Vector3(-5.0, 8.8, -5.0),   // 3F Attic Doll Workshop
+    new THREE.Vector3(6.0, 8.8, -4.5),    // 3F Attic Observatory
+    new THREE.Vector3(-6.0, 8.8, 0.5),    // Descend back to 2F
+    new THREE.Vector3(-6.0, 4.5, 6.8),
+    new THREE.Vector3(-3.8, 4.5, 6.5),
+    new THREE.Vector3(-12.0, 4.5, 3.5),   // Guest Bedroom (2F)
+    new THREE.Vector3(-12.0, 4.5, -4.0),  // Old Library (2F)
     new THREE.Vector3(-3.8, 4.5, -1.5),
     new THREE.Vector3(0, 4.5, -2.0),      // Descend Central Stairs
     new THREE.Vector3(0, 2.25, 3.0),
     new THREE.Vector3(0, 0, 7.5),
-    new THREE.Vector3(0, 0, 13.5),        // Grand Foyer & Breaker Box
-    new THREE.Vector3(5.5, 0, 12.0),
+    new THREE.Vector3(0, 0, -5.0),        // Walk through Open North Archway into North Trophy Hall!
+    new THREE.Vector3(0, 0, -13.0),
+    new THREE.Vector3(7.6, 0, -12.0),     // Loop back through Dining North Archway!
+    new THREE.Vector3(7.6, 0, -5.0),
+    new THREE.Vector3(13.5, 0, -3.5),     // Dining Hall
+    new THREE.Vector3(13.5, 0, 6.0),      // Living Baithak
     new THREE.Vector3(14.5, 0, 14.0),     // Puja Room
-    new THREE.Vector3(15.0, 0, 19.5),     // Into East Garage near Escape Car!
+    new THREE.Vector3(15.0, 0, 19.5),     // East Garage
     new THREE.Vector3(15.0, 0, 25.0),
     new THREE.Vector3(15.0, 0, 19.5),
     new THREE.Vector3(14.5, 0, 14.0),
-    new THREE.Vector3(13.5, 0, 6.0),      // Living Baithak
-    new THREE.Vector3(13.5, 0, -3.5),     // Dining Hall
-    new THREE.Vector3(5.5, 0, 5.5),
-    new THREE.Vector3(0, 0, 8.0),
+    new THREE.Vector3(5.5, 0, 12.0),      // Foyer & Breaker Box
+    new THREE.Vector3(0, 0, 13.5),
     new THREE.Vector3(-5.5, 0, 8.0),
-    new THREE.Vector3(-13.0, 0, 11.0),    // Kitchen
+    new THREE.Vector3(-13.0, 0, 11.0),    // Kitchen -> Garden Door
     new THREE.Vector3(-13.0, 0, 5.0),
     new THREE.Vector3(-13.0, 0, -2.0),    // Storage Room
-    new THREE.Vector3(-17.2, -0.3, -1.0), // Down Crypt Staircase!
+    new THREE.Vector3(-17.2, -0.3, -1.0), // Down Crypt Staircase
     new THREE.Vector3(-17.2, -3.0, -7.2),
-    new THREE.Vector3(-12.0, -3.0, -12.0), // Underground River Boat Dock!
+    new THREE.Vector3(-12.0, -3.0, -12.0), // Underground River Boat Dock
     new THREE.Vector3(-17.2, -3.0, -7.2),
     new THREE.Vector3(-17.2, -0.3, -1.0), // Back up to Ground Floor
     new THREE.Vector3(-13.0, 0, -2.0),

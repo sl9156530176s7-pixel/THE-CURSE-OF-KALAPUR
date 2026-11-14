@@ -32,6 +32,7 @@ import {
   CheckCircle2,
   Circle,
   ArrowUp,
+  Sparkles,
 } from 'lucide-react';
 import officialLogoImg from '../assets/images/kalapur_official_logo_1793628694332.jpg';
 
@@ -73,8 +74,8 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
   const lastLookPos = useRef({ x: 0, y: 0 });
   const isMouseDownOnLook = useRef(false);
 
-  // Blueprint Map Floor Tab ('upper' | 'ground' | 'crypt')
-  const [mapFloor, setMapFloor] = useState<'upper' | 'ground' | 'crypt'>('ground');
+  // Blueprint Map Floor Tab ('attic' | 'upper' | 'ground' | 'crypt')
+  const [mapFloor, setMapFloor] = useState<'attic' | 'upper' | 'ground' | 'crypt'>('ground');
 
   const closeDiary = () => {
     gameState.activeDiaryNote = null;
@@ -84,6 +85,7 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
   const toggleBlueprintMap = () => {
     const fy = gameState.checkpointPos[1] - 1.6;
     if (fy < -0.8) setMapFloor('crypt');
+    else if (fy >= 6.8) setMapFloor('attic');
     else if (fy >= 2.25) setMapFloor('upper');
     else setMapFloor('ground');
     gameState.showBlueprintMap = !gameState.showBlueprintMap;
@@ -237,6 +239,10 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
     triggerTouchAction(e, () => gameState.onTouchJump?.());
   };
 
+  const handleTouchStun = (e: React.MouseEvent | React.TouchEvent) => {
+    triggerTouchAction(e, () => gameState.onTouchStun?.());
+  };
+
   // Global window listeners so dragging outside boundaries is smooth and never gets stuck
   useEffect(() => {
     const unsub = gameState.subscribe(() => {
@@ -363,7 +369,8 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
   const py = gameState.checkpointPos[1] - 1.6;
   const pz = gameState.checkpointPos[2];
   const currentZone = getZoneName(px, py, pz);
-  const currentFloorLabel = py < -0.8 ? 'CRYPT -1' : py >= 2.25 ? 'UPPER +1' : 'GROUND 0';
+  const currentFloorLabel =
+    py < -0.8 ? 'CRYPT -1' : py >= 6.8 ? 'ATTIC +2' : py >= 2.25 ? 'UPPER +1' : 'GROUND 0';
 
   return (
     <div className="absolute inset-0 pointer-events-none select-none z-30 overflow-hidden font-sans">
@@ -476,7 +483,7 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
                 </span>
               </div>
               {!gameState.breakerPowerOn && (
-                <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-red-900/90 border border-red-500 rounded text-[8px] font-mono font-bold text-red-100 uppercase shrink-0 animate-pulse">
+                <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-red-900/90 border border-red-500 rounded text-[8px] font-mono font-bold text-red-100 uppercase shrink-0">
                   <ZapOff className="w-2.5 h-2.5" />
                   BLACKOUT
                 </span>
@@ -488,8 +495,13 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
           </div>
         </div>
 
-        {/* Ghost Warning Indicator (if in chase) */}
-        {isChasing && (
+        {/* Ghost Warning or Stunned Indicator */}
+        {gameState.villainStunTimer > 0 ? (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-950/95 border border-amber-400 rounded text-amber-100 text-[10px] sm:text-xs tracking-widest uppercase font-bold shadow-[0_0_20px_rgba(245,158,11,0.55)]">
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <span className="whitespace-nowrap">STUNNED {Math.ceil(gameState.villainStunTimer)}s</span>
+          </div>
+        ) : isChasing && (
           <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-950/95 border border-red-500 rounded text-red-100 text-[10px] sm:text-xs tracking-widest uppercase font-bold shadow-[0_0_20px_rgba(220,38,38,0.65)]">
             <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
             <span className="hidden md:inline whitespace-nowrap">VILLAIN PURSUING</span>
@@ -855,19 +867,37 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
             </button>
           </div>
 
-          {/* Right Thumb Column: JUMP above Primary ACTION Button */}
-          <div className="flex flex-col items-center gap-2.5 sm:gap-3">
-            <button
-              onTouchStart={handleTouchJump}
-              onClick={handleTouchJump}
-              className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 bg-stone-950/90 hover:bg-stone-800 border-amber-500/80 text-amber-200 flex flex-col items-center justify-center shadow-xl transition active:scale-90 cursor-pointer touch-none"
-              title="Jump (Space)"
-            >
-              <ArrowUp className="w-6 h-6 sm:w-7 sm:h-7 mb-0.5 text-amber-400" />
-              <span className="text-[9px] sm:text-[10px] font-mono font-bold uppercase">
-                JUMP
-              </span>
-            </button>
+          {/* Right Thumb Column: STUN + JUMP Side-by-Side above Primary ACTION Button */}
+          <div className="flex flex-col items-end gap-2.5 sm:gap-3">
+            <div className="flex items-center gap-2">
+              <button
+                onTouchStart={handleTouchStun}
+                onClick={handleTouchStun}
+                className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 flex flex-col items-center justify-center shadow-xl transition active:scale-90 cursor-pointer touch-none ${
+                  gameState.stunCharges > 0
+                    ? 'bg-amber-950/95 border-yellow-400 text-yellow-200 shadow-[0_0_16px_rgba(250,204,21,0.5)]'
+                    : 'bg-stone-950/90 border-stone-700 text-stone-600'
+                }`}
+                title="Scatter Sacred Vibhuti Stun Flash (G)"
+              >
+                <Sparkles className="w-5 h-5 mb-0.5 text-yellow-300" />
+                <span className="text-[8px] font-mono font-bold uppercase">
+                  STUN x{gameState.stunCharges}
+                </span>
+              </button>
+
+              <button
+                onTouchStart={handleTouchJump}
+                onClick={handleTouchJump}
+                className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 bg-stone-950/90 hover:bg-stone-800 border-amber-500/80 text-amber-200 flex flex-col items-center justify-center shadow-xl transition active:scale-90 cursor-pointer touch-none"
+                title="Jump (Space)"
+              >
+                <ArrowUp className="w-6 h-6 sm:w-7 sm:h-7 mb-0.5 text-amber-400" />
+                <span className="text-[9px] sm:text-[10px] font-mono font-bold uppercase">
+                  JUMP
+                </span>
+              </button>
+            </div>
 
             {/* Primary Action Button [E / INTERACT] */}
             <button
@@ -1031,6 +1061,21 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
             <span className="text-[8px] font-mono font-bold">OARS</span>
           </div>
 
+          {/* Stun Vibhuti Flash (Press G or Click) */}
+          <button
+            type="button"
+            onClick={handleTouchStun}
+            title="Sacred Vibhuti Stun Flash [G]"
+            className={`flex flex-col items-center justify-center w-12 h-14 rounded border shadow-lg cursor-pointer ${
+              gameState.stunCharges > 0
+                ? 'bg-yellow-950/90 hover:bg-yellow-900 border-yellow-500 text-yellow-200'
+                : 'bg-stone-950/80 border-stone-800 text-stone-500'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-yellow-400 mb-0.5" />
+            <span className="text-[8px] font-mono font-bold tabular-nums">G x{gameState.stunCharges}</span>
+          </button>
+
           {/* Decoy Lotas (Press Q or Click) */}
           <button
             type="button"
@@ -1169,20 +1214,20 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-              {/* Left: Interactive 3-Floor SVG Blueprint */}
+              {/* Left: Interactive 4-Tier SVG Blueprint (Attic +2, Upper +1, Ground 0, Crypt -1) */}
               <div className="bg-[#09131d] border border-cyan-900/60 rounded p-3">
-                <div className="flex gap-1.5 mb-3">
-                  {(['upper', 'ground', 'crypt'] as const).map((fl) => (
+                <div className="flex gap-1 mb-3">
+                  {(['attic', 'upper', 'ground', 'crypt'] as const).map((fl) => (
                     <button
                       key={fl}
                       onClick={() => setMapFloor(fl)}
-                      className={`flex-1 py-1.5 rounded text-[10px] font-mono font-bold uppercase cursor-pointer border ${
+                      className={`flex-1 py-1.5 rounded text-[9px] sm:text-[10px] font-mono font-bold uppercase cursor-pointer border ${
                         mapFloor === fl
                           ? 'bg-cyan-950 border-cyan-400 text-cyan-200'
                           : 'bg-stone-950 border-stone-800 text-stone-400 hover:text-stone-200'
                       }`}
                     >
-                      {fl === 'upper' ? 'Upper (+1)' : fl === 'ground' ? 'Ground (0)' : 'Crypt (-1)'}
+                      {fl === 'attic' ? 'Attic (+2)' : fl === 'upper' ? 'Upper (+1)' : fl === 'ground' ? 'Ground (0)' : 'Crypt (-1)'}
                     </button>
                   ))}
                 </div>
@@ -1190,11 +1235,14 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
                 {/* SVG Blueprint Grid (World X: -22..25, Z: -22..34 mapped cleanly) */}
                 <svg viewBox="-23 -23 50 58" className="w-full h-60 bg-[#060e16] rounded border border-cyan-950">
                   {mapFloor === 'ground' && (
-                    <g stroke="#38bdf8" strokeWidth="0.3" fill="rgba(14,116,144,0.12)" fontSize="2.1" fontFamily="monospace">
+                    <g stroke="#38bdf8" strokeWidth="0.3" fill="rgba(14,116,144,0.12)" fontSize="2.0" fontFamily="monospace">
+                      <rect x="-14.5" y="-20" width="34.5" height="12" stroke="#f59e0b" fill="rgba(245,158,11,0.14)" />
+                      <text x="2.75" y="-13.5" fill="#fde68a" textAnchor="middle" stroke="none">Open North Trophy Gallery</text>
                       <rect x="-20" y="-8" width="14" height="13" />
                       <text x="-13" y="-1.5" fill="#bae6fd" textAnchor="middle" stroke="none">Storage + Crypt</text>
                       <rect x="-20" y="5" width="14" height="12" />
                       <text x="-13" y="11.5" fill="#bae6fd" textAnchor="middle" stroke="none">Kitchen</text>
+                      <line x1="-11.8" y1="17" x2="-6.2" y2="17" stroke="#34d399" strokeWidth="1.0" />
                       <rect x="-6" y="-8" width="12" height="25" />
                       <text x="0" y="9.5" fill="#fde68a" textAnchor="middle" stroke="none">Marble Foyer</text>
                       <rect x="6" y="-8" width="14" height="9.5" />
@@ -1203,6 +1251,8 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
                       <text x="13" y="6.5" fill="#bae6fd" textAnchor="middle" stroke="none">Living Room</text>
                       <rect x="6" y="10.5" width="14" height="6.5" />
                       <text x="13" y="14" fill="#bae6fd" textAnchor="middle" stroke="none">Puja Shrine</text>
+                      <line x1="6.4" y1="17" x2="11.6" y2="17" stroke="#34d399" strokeWidth="1.0" />
+                      <line x1="12.4" y1="17" x2="18.2" y2="17" stroke="#fb923c" strokeWidth="1.0" />
                       <rect x="-12" y="17" width="24" height="14" stroke="#64748b" fill="rgba(15,23,42,0.25)" />
                       <text x="0" y="25" fill="#cbd5e1" textAnchor="middle" stroke="none">Courtyard + Well</text>
                       <rect x="12" y="17" width="12" height="14" stroke="#fb923c" fill="rgba(234,88,12,0.18)" />
@@ -1215,9 +1265,11 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
                   )}
 
                   {mapFloor === 'upper' && (
-                    <g stroke="#38bdf8" strokeWidth="0.3" fill="rgba(14,116,144,0.14)" fontSize="2.1" fontFamily="monospace">
+                    <g stroke="#38bdf8" strokeWidth="0.3" fill="rgba(14,116,144,0.14)" fontSize="2.0" fontFamily="monospace">
                       <rect x="-20" y="0" width="16" height="8" />
-                      <text x="-12" y="4.5" fill="#bae6fd" textAnchor="middle" stroke="none">Guest Room</text>
+                      <text x="-13.5" y="4.5" fill="#bae6fd" textAnchor="middle" stroke="none">Guest Room</text>
+                      <rect x="-7.4" y="0.4" width="2.8" height="6.8" stroke="#f87171" fill="rgba(239,68,68,0.2)" />
+                      <text x="-6" y="6" fill="#fecaca" fontSize="1.3" textAnchor="middle" stroke="none">3F↑</text>
                       <rect x="-20" y="-8" width="16" height="8" />
                       <text x="-12" y="-3.5" fill="#bae6fd" textAnchor="middle" stroke="none">Library</text>
                       <rect x="-16" y="-16" width="8" height="8" stroke="#f59e0b" strokeDasharray="1,0.6" fill="rgba(245,158,11,0.18)" />
@@ -1230,6 +1282,16 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
                       <text x="12" y="-3.5" fill="#bae6fd" textAnchor="middle" stroke="none">Nursery</text>
                       <rect x="-8" y="-20" width="16" height="12" stroke="#f87171" fill="rgba(185,28,28,0.2)" />
                       <text x="0" y="-13.5" fill="#fecaca" textAnchor="middle" stroke="none">Mystic Sanctum</text>
+                    </g>
+                  )}
+
+                  {mapFloor === 'attic' && (
+                    <g stroke="#f59e0b" strokeWidth="0.35" fill="rgba(180,83,9,0.16)" fontSize="2.1" fontFamily="monospace">
+                      <rect x="-12" y="-12" width="24" height="20" />
+                      <text x="-2" y="-7.5" fill="#fde68a" textAnchor="middle" stroke="none">3F Attic Doll Workshop</text>
+                      <text x="6.5" y="-1.5" fill="#bae6fd" textAnchor="middle" stroke="none">Observatory Loft</text>
+                      <rect x="-7.4" y="0.4" width="2.8" height="6.8" stroke="#fb7185" fill="rgba(225,29,72,0.22)" />
+                      <text x="-6" y="4.2" fill="#fecaca" fontSize="1.5" textAnchor="middle" stroke="none">2F↓</text>
                     </g>
                   )}
 
@@ -1246,7 +1308,8 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
 
                   {/* Live Player Position Marker if viewing active floor */}
                   {((mapFloor === 'ground' && py >= -0.8 && py < 2.25) ||
-                    (mapFloor === 'upper' && py >= 2.25) ||
+                    (mapFloor === 'upper' && py >= 2.25 && py < 6.8) ||
+                    (mapFloor === 'attic' && py >= 6.8) ||
                     (mapFloor === 'crypt' && py < -0.8)) && (
                     <g>
                       <circle cx={px} cy={pz} r="1.4" fill="#ef4444" opacity="0.35" />

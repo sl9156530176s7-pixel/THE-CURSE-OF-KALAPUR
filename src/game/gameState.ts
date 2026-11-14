@@ -48,6 +48,12 @@ export const DIARY_LORE: Record<string, DiaryEntry> = {
     date: 'Midnight Echoes',
     text: 'Beneath this monsoon courtyard runs an underground river tied to the ancient crypt dock. Pry the iron sluice bars with a Crowbar, dispel the blood ward with the Sacred Bell, and row out with Wooden Oars!',
   },
+  diary4: {
+    id: 'diary4',
+    title: "The Attic Dollmaker's Confession",
+    date: '3rd Floor Attic — Midnight',
+    text: 'I locked Tatya Vinchu inside this third-floor loft, yet his footsteps still climb the creaking beams. Scatter Sacred Vibhuti Ash [G / STUN] in his face to stun him for 9 seconds when cornered — gather extra pouches in the Puja Shrine and Attic!',
+  },
 };
 
 export interface SaveData {
@@ -68,6 +74,7 @@ export interface SaveData {
   secretPassageOpen?: boolean;
   breakerPowerOn?: boolean;
   decoys?: number;
+  stunCharges?: number;
   batteries: number;
   flashlightBattery: number;
   currentObjective: string;
@@ -107,6 +114,11 @@ export function getZoneName(x: number, y: number, z: number): string {
     if (z < -13) return 'River Crypt Boat Dock';
     return 'Underground River Crypt';
   }
+  if (y >= 6.8) {
+    if (x < -2) return 'Attic Doll Workshop (3F)';
+    if (x > 4) return 'Attic Observatory Loft (3F)';
+    return '3rd Floor Grand Attic';
+  }
   if (y >= 2.25) {
     if (z < -8 && x >= -8.5) return 'Mystic Ritual Sanctum';
     if (z < -8 && x < -8.5) return 'Secret Archive Passage';
@@ -118,6 +130,7 @@ export function getZoneName(x: number, y: number, z: number): string {
   }
   if (x >= 11.5 && z >= 16.5) return 'East Courtyard Garage';
   if (z >= 17) return 'Monsoon Courtyard';
+  if (z < -8 && x >= -14.5) return 'North Trophy Gallery';
   if (x > 5.8 && z >= 10.5) return 'Puja Prayer Shrine';
   if (x > 5.8 && z >= 1.5) return 'Living Baithak';
   if (x > 5.8 && z < 1.5) return 'Grand Dining Hall';
@@ -171,12 +184,16 @@ export class GameStateManager {
 
   public escapeRouteTaken: 'gate' | 'cellar' | 'car' | null = null;
 
-  // Equipment, Decoys & Power Breaker
+  // Equipment, Defense Stun, Decoys & Power Breaker
   public batteries = 2;
   public flashlightBattery = 100;
   public flashlightOn = true;
   public decoys = 2;
   public maxDecoys = 5;
+  public stunCharges = 2;
+  public maxStunCharges = 3;
+  public stunCooldown = 0;
+  public villainStunTimer = 0;
   public breakerPowerOn = true;
   public secretPassageOpen = false;
   public showBlueprintMap = false;
@@ -196,6 +213,7 @@ export class GameStateManager {
   public onTouchFlashlight?: () => void;
   public onTouchUseBattery?: () => void;
   public onTouchThrowDecoy?: () => void;
+  public onTouchStun?: () => void;
   public onTouchJump?: () => void;
   public isTouchDevice = false;
 
@@ -293,6 +311,7 @@ export class GameStateManager {
       secretPassageOpen: this.secretPassageOpen,
       breakerPowerOn: this.breakerPowerOn,
       decoys: this.decoys,
+      stunCharges: this.stunCharges,
       batteries: this.batteries,
       flashlightBattery: this.flashlightBattery,
       currentObjective: this.currentObjective,
@@ -341,6 +360,7 @@ export class GameStateManager {
       this.secretPassageOpen = !!data.secretPassageOpen;
       this.breakerPowerOn = data.breakerPowerOn !== undefined ? !!data.breakerPowerOn : true;
       this.decoys = typeof data.decoys === 'number' ? data.decoys : 2;
+      this.stunCharges = typeof data.stunCharges === 'number' ? data.stunCharges : 2;
       this.batteries = typeof data.batteries === 'number' ? data.batteries : 2;
       this.flashlightBattery = typeof data.flashlightBattery === 'number' ? data.flashlightBattery : 100;
       this.currentObjective = data.currentObjective || this.currentObjective;
@@ -446,6 +466,9 @@ export class GameStateManager {
     this.flashlightBattery = 100;
     this.flashlightOn = true;
     this.decoys = 2;
+    this.stunCharges = 2;
+    this.stunCooldown = 0;
+    this.villainStunTimer = 0;
     this.breakerPowerOn = true;
     this.secretPassageOpen = false;
     this.showBlueprintMap = false;

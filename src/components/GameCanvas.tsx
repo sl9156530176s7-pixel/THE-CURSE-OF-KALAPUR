@@ -103,6 +103,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const catchTimeoutRef = useRef<number | null>(null);
   const kitchenScaredRef = useRef(false);
   const whisperTimerRef = useRef(7.0);
+  const creakTimerRef = useRef(12.0);
+  const breathingTimerRef = useRef(1.2);
   const clockTickTimerRef = useRef(1.0);
   const waterDripTimerRef = useRef(3.0);
   const lastAppliedSessionRef = useRef(0);
@@ -209,13 +211,15 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       powerPreference: 'high-performance',
     });
     renderer.setSize(initW, initH);
+    const quality = gameState.settings.graphicsQuality || 'high';
+    const dprCap = quality === 'low' ? 1.0 : quality === 'medium' ? 1.15 : isMobile ? 1.25 : 1.5;
     renderer.setPixelRatio(
-      isSoftwareGl ? 1 : Math.min(window.devicePixelRatio || 1, isMobile ? 1.25 : 1.5)
+      isSoftwareGl ? 1 : Math.min(window.devicePixelRatio || 1, dprCap)
     );
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.22;
-    renderer.shadowMap.enabled = !isSoftwareGl;
+    renderer.shadowMap.enabled = !isSoftwareGl && quality !== 'low';
     renderer.shadowMap.type = isMobile ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 
     const handleContextLost = (e: Event) => {
@@ -337,8 +341,38 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     };
     window.addEventListener('kalapur:throwDecoy', handleThrowDecoy);
 
+    // Sacred Vibhuti Stun Flash Light & Villain Stun Handler
+    const stunFlashLight = new THREE.PointLight(0xfbbf24, 0, 14, 1.5);
+    scene.add(stunFlashLight);
+    let stunFlashTimer = 0;
+
+    const handleStunBlast = (ev: Event) => {
+      const detail = (ev as CustomEvent<{ origin: [number, number, number] }>).detail;
+      if (!detail) return;
+      stunFlashLight.position.set(detail.origin[0], detail.origin[1] + 0.1, detail.origin[2]);
+      stunFlashTimer = 0.55;
+      stunFlashLight.intensity = 9.0;
+
+      const dist = ghost.position.distanceTo(player.position);
+      const vertDiff = Math.abs(ghost.position.y - player.feetY);
+      if (dist <= 6.2 && vertDiff <= 3.0) {
+        ghost.stun(9.0);
+        gameState.showSubtitle(
+          `VIBHUTI FLASH! Villain stunned for 9 seconds — RUN! (${gameState.stunCharges} left)`,
+          4200
+        );
+      } else {
+        gameState.showSubtitle(
+          `Scattered Sacred Vibhuti Ash — Villain was out of range! (${gameState.stunCharges} left)`,
+          3000
+        );
+      }
+    };
+    window.addEventListener('kalapur:stunBlast', handleStunBlast);
+
     let lastBreakerVisual: boolean | null = null;
     let lastCarBattVisual: boolean | null = null;
+    let lastAppliedQuality = gameState.settings.graphicsQuality;
 
     // Menu & Ending Cinematic Camera
     const menuCam = new THREE.PerspectiveCamera(65, initW / initH, 0.1, 80);
@@ -458,6 +492,22 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       } else {
         lightningLight.intensity = 0;
         (scene.fog as THREE.FogExp2).color.copy(baseFog);
+      }
+
+      if (stunFlashTimer > 0) {
+        stunFlashTimer = Math.max(0, stunFlashTimer - delta);
+        stunFlashLight.intensity = (stunFlashTimer / 0.55) * 9.0;
+      } else {
+        stunFlashLight.intensity = 0;
+      }
+
+      // Live graphics quality toggle sync
+      if (gameState.settings.graphicsQuality !== lastAppliedQuality) {
+        lastAppliedQuality = gameState.settings.graphicsQuality;
+        const q = lastAppliedQuality;
+        const cap = q === 'low' ? 1.0 : q === 'medium' ? 1.15 : isMobile ? 1.25 : 1.5;
+        renderer.setPixelRatio(isSoftwareGl ? 1 : Math.min(window.devicePixelRatio || 1, cap));
+        renderer.shadowMap.enabled = !isSoftwareGl && q !== 'low';
       }
 
       // 3. Flickering Diya Lamps & Main Breaker Blackout Control
@@ -592,6 +642,26 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                 soundManager.playTantricWhisper(pan);
                 gameState.showSubtitle("A chilling whisper mutters: 'Om Phat Swaha...'", 3000);
               }
+            }
+          }
+
+          // Spooky Phantom Floorboard Creaks in Nearby Empty Rooms
+          creakTimerRef.current -= delta;
+          if (creakTimerRef.current <= 0) {
+            creakTimerRef.current = 14 + Math.random() * 14;
+            soundManager.playPhantomCreak((Math.random() - 0.5) * 1.6);
+          }
+
+          // Scared Heavy Breathing during chases or when exhausted
+          breathingTimerRef.current -= delta;
+          if (breathingTimerRef.current <= 0) {
+            const ghostClose = gameState.ghostState === 'chase' && gameState.ghostDistance < 9.0;
+            const winded = gameState.stamina < 18;
+            if (ghostClose || winded) {
+              breathingTimerRef.current = ghostClose ? 0.72 : 1.05;
+              soundManager.playHeavyBreathing(ghostClose ? 0.9 : 0.45);
+            } else {
+              breathingTimerRef.current = 0.6;
             }
           }
 
@@ -748,6 +818,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       window.removeEventListener('orientationchange', handleResize);
       window.removeEventListener('kalapur:escaped', handleEscaped);
       window.removeEventListener('kalapur:throwDecoy', handleThrowDecoy);
+      window.removeEventListener('kalapur:stunBlast', handleStunBlast);
       decoyGeo.dispose();
       decoyMat.dispose();
       renderer.domElement.removeEventListener('webglcontextlost', handleContextLost);

@@ -129,6 +129,9 @@ export class PlayerController {
     gameState.onTouchThrowDecoy = () => {
       this.throwDecoy();
     };
+    gameState.onTouchStun = () => {
+      this.useStunFlash();
+    };
     gameState.onTouchJump = () => {
       this.jump();
     };
@@ -177,6 +180,31 @@ export class PlayerController {
     gameState.notify();
   }
 
+  public useStunFlash() {
+    if (gameState.isHiding !== null) {
+      gameState.showSubtitle('Step out of hiding before scattering Sacred Vibhuti!');
+      return;
+    }
+    if (gameState.stunCooldown > 0) {
+      return;
+    }
+    if (gameState.stunCharges <= 0) {
+      gameState.showSubtitle('No Sacred Vibhuti pouches left! Find more in Puja Shrine or 3F Attic.');
+      return;
+    }
+    gameState.stunCharges -= 1;
+    gameState.stunCooldown = 2.5;
+    soundManager.playStunBlast();
+    window.dispatchEvent(
+      new CustomEvent('kalapur:stunBlast', {
+        detail: {
+          origin: [this.position.x, this.position.y, this.position.z],
+        },
+      })
+    );
+    gameState.notify();
+  }
+
   public reloadBattery() {
     if (gameState.useSpareBattery()) {
       this.flashlight.visible = true;
@@ -203,6 +231,9 @@ export class PlayerController {
       }
       if (e.code === 'KeyQ') {
         this.throwDecoy();
+      }
+      if (e.code === 'KeyG' && !e.repeat) {
+        this.useStunFlash();
       }
       if (e.code === 'Tab') {
         e.preventDefault();
@@ -288,6 +319,10 @@ export class PlayerController {
   }
 
   public update(delta: number, colliders: THREE.Box3[], interactives: InteractiveObject[]) {
+    if (gameState.stunCooldown > 0) {
+      gameState.stunCooldown = Math.max(0, gameState.stunCooldown - delta);
+    }
+
     // 1. Flashlight Battery Drain
     if (gameState.flashlightOn && gameState.flashlightBattery > 0) {
       gameState.flashlightBattery = Math.max(0, gameState.flashlightBattery - delta * 0.4);
@@ -487,7 +522,7 @@ export class PlayerController {
         const landSurface: 'wood' | 'stone' | 'water' =
           supportY < -0.5
             ? 'water'
-            : supportY < 1.5 && (Math.abs(this.position.x) < 6.0 || this.position.z > 16.5 || this.position.x < -5.8)
+            : supportY < 1.5 && (Math.abs(this.position.x) < 6.0 || this.position.z > 16.5 || this.position.z < -8.0 || this.position.x < -5.8)
             ? 'stone'
             : 'wood';
         soundManager.playLandSound(landSurface);
@@ -527,7 +562,7 @@ export class PlayerController {
         const surface: 'wood' | 'stone' | 'water' =
           supportY < -0.5
             ? 'water'
-            : supportY < 1.5 && (Math.abs(this.position.x) < 6.0 || this.position.z > 16.5 || this.position.x < -5.8)
+            : supportY < 1.5 && (Math.abs(this.position.x) < 6.0 || this.position.z > 16.5 || this.position.z < -8.0 || this.position.x < -5.8)
             ? 'stone'
             : 'wood';
         soundManager.playFootstep(gameState.isSprinting, 0, surface);
@@ -867,6 +902,20 @@ export class PlayerController {
         item.action?.();
         soundManager.playItemPickup();
         gameState.showSubtitle(`Picked up Brass Decoy Lota! Press [Q] or LURE to distract Tatya. (${gameState.decoys}/${gameState.maxDecoys})`);
+        gameState.notify();
+        break;
+      }
+
+      case 'stun_pickup': {
+        if (gameState.stunCharges >= gameState.maxStunCharges) {
+          gameState.showSubtitle('Sacred Vibhuti pouch is already full!');
+          return;
+        }
+        gameState.stunCharges = Math.min(gameState.maxStunCharges, gameState.stunCharges + 1);
+        item.collected = true;
+        item.action?.();
+        soundManager.playItemPickup();
+        gameState.showSubtitle(`Collected Sacred Vibhuti Ash! Press [G] or STUN near Villain to freeze them for 9s! (${gameState.stunCharges}/${gameState.maxStunCharges})`);
         gameState.notify();
         break;
       }
