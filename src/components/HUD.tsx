@@ -1235,14 +1235,19 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
                 {/* SVG Blueprint Grid (World X: -22..25, Z: -22..34 mapped cleanly) */}
                 <svg viewBox="-23 -23 50 58" className="w-full h-60 bg-[#060e16] rounded border border-cyan-950">
                   {mapFloor === 'ground' && (
-                    <g stroke="#38bdf8" strokeWidth="0.3" fill="rgba(14,116,144,0.12)" fontSize="2.0" fontFamily="monospace">
-                      <rect x="-14.5" y="-20" width="34.5" height="12" stroke="#f59e0b" fill="rgba(245,158,11,0.14)" />
-                      <text x="2.75" y="-13.5" fill="#fde68a" textAnchor="middle" stroke="none">Open North Trophy Gallery</text>
-                      <rect x="-20" y="-8" width="14" height="13" />
-                      <text x="-13" y="-1.5" fill="#bae6fd" textAnchor="middle" stroke="none">Storage + Crypt</text>
+                    <g stroke="#38bdf8" strokeWidth="0.3" fill="rgba(14,116,144,0.12)" fontSize="1.8" fontFamily="monospace">
+                      <rect x="-20" y="-20" width="14" height="12" stroke="#f59e0b" fill="rgba(245,158,11,0.12)" />
+                      <text x="-13" y="-13.5" fill="#fde68a" textAnchor="middle" stroke="none">Armoury</text>
+                      <rect x="-6" y="-20" width="12" height="12" stroke="#f59e0b" fill="rgba(245,158,11,0.14)" />
+                      <text x="0" y="-13.5" fill="#fde68a" textAnchor="middle" stroke="none">Trophy Hall</text>
+                      <rect x="6" y="-20" width="14" height="12" stroke="#f59e0b" fill="rgba(245,158,11,0.12)" />
+                      <text x="13" y="-13.5" fill="#fde68a" textAnchor="middle" stroke="none">Servants</text>
+                      <rect x="-20" y="-8" width="14" height="10" />
+                      <text x="-13" y="-3" fill="#bae6fd" textAnchor="middle" stroke="none">Storage/Crypt</text>
+                      <rect x="-20" y="1.8" width="6.2" height="3.2" stroke="#38bdf8" fill="rgba(56,189,248,0.18)" />
+                      <text x="-16.9" y="3.9" fill="#e0f2fe" fontSize="1.35" textAnchor="middle" stroke="none">Bath</text>
                       <rect x="-20" y="5" width="14" height="12" />
                       <text x="-13" y="11.5" fill="#bae6fd" textAnchor="middle" stroke="none">Kitchen</text>
-                      <line x1="-11.8" y1="17" x2="-6.2" y2="17" stroke="#34d399" strokeWidth="1.0" />
                       <rect x="-6" y="-8" width="12" height="25" />
                       <text x="0" y="9.5" fill="#fde68a" textAnchor="middle" stroke="none">Marble Foyer</text>
                       <rect x="6" y="-8" width="14" height="9.5" />
@@ -1251,8 +1256,10 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
                       <text x="13" y="6.5" fill="#bae6fd" textAnchor="middle" stroke="none">Living Room</text>
                       <rect x="6" y="10.5" width="14" height="6.5" />
                       <text x="13" y="14" fill="#bae6fd" textAnchor="middle" stroke="none">Puja Shrine</text>
-                      <line x1="6.4" y1="17" x2="11.6" y2="17" stroke="#34d399" strokeWidth="1.0" />
-                      <line x1="12.4" y1="17" x2="18.2" y2="17" stroke="#fb923c" strokeWidth="1.0" />
+                      <line x1="-1.8" y1="-8" x2="1.8" y2="-8" stroke="#34d399" strokeWidth="0.9" />
+                      <line x1="6.4" y1="-8" x2="9.2" y2="-8" stroke="#34d399" strokeWidth="0.9" />
+                      <line x1="-1" y1="17" x2="1" y2="17" stroke="#f87171" strokeWidth="0.9" />
+                      <line x1="14" y1="17" x2="16" y2="17" stroke="#fb923c" strokeWidth="0.9" />
                       <rect x="-12" y="17" width="24" height="14" stroke="#64748b" fill="rgba(15,23,42,0.25)" />
                       <text x="0" y="25" fill="#cbd5e1" textAnchor="middle" stroke="none">Courtyard + Well</text>
                       <rect x="12" y="17" width="12" height="14" stroke="#fb923c" fill="rgba(234,88,12,0.18)" />
@@ -1265,7 +1272,7 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
                   )}
 
                   {mapFloor === 'upper' && (
-                    <g stroke="#38bdf8" strokeWidth="0.3" fill="rgba(14,116,144,0.14)" fontSize="2.0" fontFamily="monospace">
+                    <g stroke="#38bdf8" strokeWidth="0.3" fill="rgba(14,116,144,0.14)" fontSize="1.85" fontFamily="monospace">
                       <rect x="-20" y="0" width="16" height="8" />
                       <text x="-13.5" y="4.5" fill="#bae6fd" textAnchor="middle" stroke="none">Guest Room</text>
                       <rect x="-7.4" y="0.4" width="2.8" height="6.8" stroke="#f87171" fill="rgba(239,68,68,0.2)" />
@@ -1279,28 +1286,37 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
                       <rect x="4" y="0" width="16" height="8" />
                       <text x="12" y="4.5" fill="#bae6fd" textAnchor="middle" stroke="none">Master Bed</text>
                       <rect x="4" y="-8" width="16" height="8" />
-                      <text x="12" y="-3.5" fill="#bae6fd" textAnchor="middle" stroke="none">Nursery</text>
+                      <text x="9.8" y="-3.5" fill="#bae6fd" textAnchor="middle" stroke="none">Nursery</text>
+                      <rect x="15.6" y="-8" width="4.4" height="4.4" stroke="#38bdf8" fill="rgba(56,189,248,0.2)" />
+                      <text x="17.8" y="-5.3" fill="#e0f2fe" fontSize="1.35" textAnchor="middle" stroke="none">Bath</text>
                       <rect x="-8" y="-20" width="16" height="12" stroke="#f87171" fill="rgba(185,28,28,0.2)" />
                       <text x="0" y="-13.5" fill="#fecaca" textAnchor="middle" stroke="none">Mystic Sanctum</text>
+                      <rect x="8" y="-20" width="12" height="12" stroke="#f59e0b" fill="rgba(245,158,11,0.16)" />
+                      <text x="14" y="-13.5" fill="#fde68a" textAnchor="middle" stroke="none">Astrology Study</text>
                     </g>
                   )}
 
                   {mapFloor === 'attic' && (
-                    <g stroke="#f59e0b" strokeWidth="0.35" fill="rgba(180,83,9,0.16)" fontSize="2.1" fontFamily="monospace">
-                      <rect x="-12" y="-12" width="24" height="20" />
-                      <text x="-2" y="-7.5" fill="#fde68a" textAnchor="middle" stroke="none">3F Attic Doll Workshop</text>
-                      <text x="6.5" y="-1.5" fill="#bae6fd" textAnchor="middle" stroke="none">Observatory Loft</text>
+                    <g stroke="#f59e0b" strokeWidth="0.35" fill="rgba(180,83,9,0.16)" fontSize="1.9" fontFamily="monospace">
+                      <rect x="-12" y="-12" width="11" height="12.4" />
+                      <text x="-6.5" y="-5.5" fill="#fde68a" textAnchor="middle" stroke="none">Doll Workshop</text>
+                      <rect x="-1" y="-12" width="13" height="10.5" stroke="#f87171" fill="rgba(185,28,28,0.18)" />
+                      <text x="5.5" y="-6.2" fill="#fecaca" textAnchor="middle" stroke="none">Seance Parlor</text>
+                      <rect x="-12" y="-1.5" width="24" height="9.5" />
+                      <text x="4.5" y="4.0" fill="#bae6fd" textAnchor="middle" stroke="none">Observatory Loft</text>
                       <rect x="-7.4" y="0.4" width="2.8" height="6.8" stroke="#fb7185" fill="rgba(225,29,72,0.22)" />
                       <text x="-6" y="4.2" fill="#fecaca" fontSize="1.5" textAnchor="middle" stroke="none">2F↓</text>
                     </g>
                   )}
 
                   {mapFloor === 'crypt' && (
-                    <g stroke="#2dd4bf" strokeWidth="0.35" fill="rgba(13,148,136,0.16)" fontSize="2.1" fontFamily="monospace">
+                    <g stroke="#2dd4bf" strokeWidth="0.35" fill="rgba(13,148,136,0.16)" fontSize="1.9" fontFamily="monospace">
                       <rect x="-19" y="-7" width="3.6" height="6.8" stroke="#fbbf24" />
                       <text x="-17.2" y="-3" fill="#fde68a" fontSize="1.6" textAnchor="middle" stroke="none">Stairs</text>
                       <rect x="-21" y="-14.6" width="16" height="7.6" />
                       <text x="-13" y="-10" fill="#99f6e4" textAnchor="middle" stroke="none">Crypt Stone Dock</text>
+                      <rect x="-5" y="-16" width="10" height="9" stroke="#f87171" fill="rgba(185,28,28,0.18)" />
+                      <text x="0" y="-11" fill="#fecaca" textAnchor="middle" stroke="none">Bone Vault</text>
                       <rect x="-21" y="-21" width="16" height="6.4" fill="rgba(6,78,59,0.45)" />
                       <text x="-13" y="-17.2" fill="#5eead4" textAnchor="middle" stroke="none">River Escape Boat</text>
                     </g>

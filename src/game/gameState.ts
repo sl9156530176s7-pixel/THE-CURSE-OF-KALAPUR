@@ -52,7 +52,19 @@ export const DIARY_LORE: Record<string, DiaryEntry> = {
     id: 'diary4',
     title: "The Attic Dollmaker's Confession",
     date: '3rd Floor Attic — Midnight',
-    text: 'I locked Tatya Vinchu inside this third-floor loft, yet his footsteps still climb the creaking beams. Scatter Sacred Vibhuti Ash [G / STUN] in his face to stun him for 9 seconds when cornered — gather extra pouches in the Puja Shrine and Attic!',
+    text: 'I locked Tatya Vinchu inside this third-floor loft, yet his footsteps still climb the creaking beams. Scatter Sacred Vibhuti Ash [G / STUN] in his face to stun him for 9 seconds when cornered — gather extra pouches in the Puja Shrine, Study, and Attic!',
+  },
+  diary5: {
+    id: 'diary5',
+    title: 'Bone Vault Ledger',
+    date: 'Subterranean Wing (-1)',
+    text: 'Beyond the Crypt Dock stone arch lies the Zamindar Bone Vault. Old Tantric bindings and spare Brass Decoy Lotas were hidden inside wooden crates when the Black River rose.',
+  },
+  diary6: {
+    id: 'diary6',
+    title: "Astrologer's Star Chart",
+    date: 'Upper NE Wing (+1)',
+    text: 'An open stone arch links this NE Astrology Chamber straight into the Mystic Sanctum Altar, allowing hurried escapes from Tatya without descending to the Foyer.',
   },
 };
 
@@ -111,17 +123,21 @@ const SETTINGS_KEY = 'kalapur_settings_v2';
 
 export function getZoneName(x: number, y: number, z: number): string {
   if (y < -0.8) {
+    if (x > -5.0) return 'Underground Bone Vault';
     if (z < -13) return 'River Crypt Boat Dock';
     return 'Underground River Crypt';
   }
   if (y >= 6.8) {
-    if (x < -2) return 'Attic Doll Workshop (3F)';
-    if (x > 4) return 'Attic Observatory Loft (3F)';
+    if (x > -1.0 && z < -1.5) return 'Attic Seance Parlor (3F)';
+    if (z < 0.2) return 'Attic Doll Workshop (3F)';
+    if (x > -4.2) return 'Attic Observatory Loft (3F)';
     return '3rd Floor Grand Attic';
   }
   if (y >= 2.25) {
+    if (z < -8 && x > 8.0) return 'Zamindar Astrology Study';
     if (z < -8 && x >= -8.5) return 'Mystic Ritual Sanctum';
     if (z < -8 && x < -8.5) return 'Secret Archive Passage';
+    if (x > 15.6 && z >= -8.0 && z <= -3.6) return 'Upper Master Washroom';
     if (x > 3.8 && z >= 0) return 'Master Bedchamber';
     if (x > 3.8 && z < 0) return 'Cursed Doll Nursery';
     if (x < -3.8 && z >= 0) return 'Guest Bedchamber';
@@ -130,11 +146,16 @@ export function getZoneName(x: number, y: number, z: number): string {
   }
   if (x >= 11.5 && z >= 16.5) return 'East Courtyard Garage';
   if (z >= 17) return 'Monsoon Courtyard';
-  if (z < -8 && x >= -14.5) return 'North Trophy Gallery';
+  if (z < -8) {
+    if (x < -6.0) return 'West Armoury Room';
+    if (x > 6.0) return 'Servant Quarters & Pantry';
+    return 'North Trophy Gallery';
+  }
   if (x > 5.8 && z >= 10.5) return 'Puja Prayer Shrine';
   if (x > 5.8 && z >= 1.5) return 'Living Baithak';
   if (x > 5.8 && z < 1.5) return 'Grand Dining Hall';
   if (x < -5.8 && z >= 5.0) return 'Haunted Kitchen';
+  if (x <= -13.8 && z >= 1.8 && z < 5.0) return 'Ground Floor Washroom';
   if (x < -5.8 && z < 5.0) return 'Storage & Crypt Stairs';
   return 'Grand Marble Foyer';
 }
