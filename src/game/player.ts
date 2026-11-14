@@ -32,6 +32,12 @@ export class PlayerController {
   // Held Item (Photo Frame in hands)
   public heldFrameMesh: THREE.Group;
 
+  // Vertical Jump & Floor Physics (Granny Ch 3 crisp grounded feel)
+  public feetY = 0;
+  public verticalVelocity = 0;
+  public isGrounded = true;
+  private currentEyeHeight = 1.6;
+
   // Input states
   public keys: Record<string, boolean> = {};
   public isLocked = false;
@@ -123,6 +129,28 @@ export class PlayerController {
     gameState.onTouchThrowDecoy = () => {
       this.throwDecoy();
     };
+    gameState.onTouchJump = () => {
+      this.jump();
+    };
+  }
+
+  public jump() {
+    if (
+      gameState.isHiding !== null ||
+      !this.isGrounded ||
+      gameState.isDayTransitioning ||
+      gameState.isGameOver ||
+      gameState.isVictory
+    ) {
+      return;
+    }
+    if (gameState.isCrouching) {
+      gameState.isCrouching = false;
+      gameState.notify();
+    }
+    this.verticalVelocity = 6.35;
+    this.isGrounded = false;
+    soundManager.playJumpSound();
   }
 
   public throwDecoy() {
@@ -187,6 +215,10 @@ export class PlayerController {
       }
       if (e.code === 'KeyE') {
         this.handleInteraction();
+      }
+      if (e.code === 'Space' && !e.repeat) {
+        e.preventDefault();
+        this.jump();
       }
     };
 
@@ -378,38 +410,98 @@ export class PlayerController {
       if (Math.abs(this.velocity.z) < 0.05) this.velocity.z = 0;
     }
 
-    // 6. Proposed new position with elevation-aware wall collision check & sliding
+    // 6. Proposed new position with elevation-aware wall & closed-door collision + sliding
     const nextX = this.position.x + this.velocity.x * delta;
     const nextZ = this.position.z + this.velocity.z * delta;
 
     // Player bounding radius = 0.28m (Smooth sliding through doorways and corners)
     const playerRadius = 0.28;
-    this.tmpBoxMin.set(nextX - playerRadius, this.position.y - 1.1, this.position.z - playerRadius);
-    this.tmpBoxMax.set(nextX + playerRadius, this.position.y + 0.2, this.position.z + playerRadius);
+    const playerKneeY = this.feetY + 0.32;
+    const playerHeadY = this.feetY + (gameState.isCrouching ? 0.95 : 1.7);
+
+    this.tmpBoxMin.set(nextX - playerRadius, playerKneeY, this.position.z - playerRadius);
+    this.tmpBoxMax.set(nextX + playerRadius, playerHeadY, this.position.z + playerRadius);
     this.tmpBoxX.set(this.tmpBoxMin, this.tmpBoxMax);
 
-    this.tmpBoxMin.set(this.position.x - playerRadius, this.position.y - 1.1, nextZ - playerRadius);
-    this.tmpBoxMax.set(this.position.x + playerRadius, this.position.y + 0.2, nextZ + playerRadius);
+    this.tmpBoxMin.set(this.position.x - playerRadius, playerKneeY, nextZ - playerRadius);
+    this.tmpBoxMax.set(this.position.x + playerRadius, playerHeadY, nextZ + playerRadius);
     this.tmpBoxZ.set(this.tmpBoxMin, this.tmpBoxMax);
 
     let collideX = false;
     let collideZ = false;
 
     for (const box of colliders) {
-      if (box.max.y < this.position.y - 1.2 || box.min.y > this.position.y + 0.3) {
+      if (box.max.y <= playerKneeY || box.min.y >= playerHeadY) {
         continue;
       }
       if (box.intersectsBox(this.tmpBoxX)) collideX = true;
       if (box.intersectsBox(this.tmpBoxZ)) collideZ = true;
     }
 
+    // Closed doors & closed secret revolving bookcase block movement until opened
+    for (const item of interactives) {
+      if (
+        (item.type === 'door' || item.type === 'secret_bookcase') &&
+        !item.isOpen &&
+        item.colliderBox
+      ) {
+        const box = item.colliderBox;
+        if (box.max.y <= playerKneeY || box.min.y >= playerHeadY) {
+          continue;
+        }
+        if (box.intersectsBox(this.tmpBoxX)) collideX = true;
+        if (box.intersectsBox(this.tmpBoxZ)) collideZ = true;
+      }
+    }
+
     if (!collideX) this.position.x = nextX;
     if (!collideZ) this.position.z = nextZ;
 
-    // 7. Smooth Floor & Staircase Elevation
-    const currentFloorBaseY = getMansionFloorHeight(this.position.x, this.position.z, this.position.y);
-    const targetEyeY = currentFloorBaseY + (gameState.isCrouching ? 0.9 : 1.6);
-    this.position.y = THREE.MathUtils.damp(this.position.y, targetEyeY, 24, delta);
+    // 7. Vertical Jump Gravity, Surface-Top Landing & Multi-Level Floor Elevation
+    let supportY = getMansionFloorHeight(this.position.x, this.position.z, this.feetY);
+    for (const box of colliders) {
+      if (
+        box.min.x <= this.position.x + 0.24 &&
+        box.max.x >= this.position.x - 0.24 &&
+        box.min.z <= this.position.z + 0.24 &&
+        box.max.z >= this.position.z - 0.24 &&
+        box.max.y <= this.feetY + 0.24 &&
+        box.max.y >= supportY &&
+        box.max.y - supportY <= 1.55
+      ) {
+        supportY = box.max.y;
+      }
+    }
+
+    this.verticalVelocity -= 18.5 * delta;
+    this.feetY += this.verticalVelocity * delta;
+
+    // Clamp head clearance inside low Underground Crypt chamber (ceiling at -0.25)
+    if (this.feetY < -0.45 && this.feetY > -1.98 && this.position.z < -6.8) {
+      this.feetY = -1.98;
+      if (this.verticalVelocity > 0) this.verticalVelocity = 0;
+    }
+
+    if (this.feetY <= supportY) {
+      if (!this.isGrounded && this.verticalVelocity < -3.2) {
+        const landSurface: 'wood' | 'stone' | 'water' =
+          supportY < -0.5
+            ? 'water'
+            : supportY < 1.5 && (Math.abs(this.position.x) < 6.0 || this.position.z > 16.5 || this.position.x < -5.8)
+            ? 'stone'
+            : 'wood';
+        soundManager.playLandSound(landSurface);
+      }
+      this.feetY = supportY;
+      this.verticalVelocity = 0;
+      this.isGrounded = true;
+    } else if (this.feetY > supportY + 0.08) {
+      this.isGrounded = false;
+    }
+
+    const targetEyeOffset = gameState.isCrouching ? 0.9 : 1.6;
+    this.currentEyeHeight = THREE.MathUtils.damp(this.currentEyeHeight, targetEyeOffset, 22, delta);
+    this.position.y = this.feetY + this.currentEyeHeight;
 
     // Sync live checkpoint coordinates
     gameState.checkpointPos[0] = this.position.x;
@@ -417,9 +509,9 @@ export class PlayerController {
     gameState.checkpointPos[2] = this.position.z;
     gameState.checkpointRot = this.yaw;
 
-    // 8. Rock-Solid Granny Ch 3 Camera Stability + Surface-Aware Footsteps
+    // 8. Rock-Solid Granny Ch 3 Camera Stability + Grounded Footsteps
     const nowSec = performance.now() * 0.001;
-    if (isMoving) {
+    if (isMoving && this.isGrounded) {
       const bobFreq = gameState.isSprinting ? 12 : gameState.isCrouching ? 6.5 : 9;
       this.headbobTimer += delta * bobFreq;
       const bobY = gameState.settings.cameraHeadBob
@@ -433,15 +525,15 @@ export class PlayerController {
       if (this.footstepTimer > stepDelay) {
         this.footstepTimer = 0;
         const surface: 'wood' | 'stone' | 'water' =
-          currentFloorBaseY < -0.5
+          supportY < -0.5
             ? 'water'
-            : currentFloorBaseY < 1.5 && (Math.abs(this.position.x) < 6.0 || this.position.z > 16.5 || this.position.x < -5.8)
+            : supportY < 1.5 && (Math.abs(this.position.x) < 6.0 || this.position.z > 16.5 || this.position.x < -5.8)
             ? 'stone'
             : 'wood';
         soundManager.playFootstep(gameState.isSprinting, 0, surface);
       }
     } else {
-      // Zero idle sway — completely steady horizon when standing still
+      // Zero idle sway — completely steady horizon when standing still or airborne
       this.camera.position.set(this.position.x, this.position.y, this.position.z);
     }
 
@@ -484,6 +576,9 @@ export class PlayerController {
 
     for (const item of interactives) {
       if (item.collected) continue;
+      if (item.drawerId) {
+        item.mesh.getWorldPosition(item.position);
+      }
       const dist = this.camera.position.distanceTo(item.position);
       if (dist < closestDist) {
         this.tmpToObj.copy(item.position).sub(this.camera.position).normalize();
@@ -624,6 +719,7 @@ export class PlayerController {
         item.isOpen = !item.isOpen;
         soundManager.playDoorSound(item.isOpen);
         item.mesh.userData.targetRotY = item.isOpen ? Math.PI / 2 : 0;
+        item.prompt = item.isOpen ? `Close ${item.name}` : `Open ${item.name}`;
         gameState.showSubtitle(item.isOpen ? `Opened ${item.name}` : `Closed ${item.name}`);
         break;
       }
@@ -968,6 +1064,10 @@ export class PlayerController {
 
   public setPosition(pos: [number, number, number], rotY = 0) {
     this.position.set(pos[0], pos[1], pos[2]);
+    this.feetY = Math.max(-3.0, pos[1] - 1.6);
+    this.verticalVelocity = 0;
+    this.isGrounded = true;
+    this.currentEyeHeight = 1.6;
     this.camera.position.copy(this.position);
     this.velocity.set(0, 0, 0);
     this.keys = {};
@@ -980,7 +1080,7 @@ export class PlayerController {
     this.pitch = 0;
     this.targetPitch = 0;
     this.camera.rotation.set(0, rotY, 0, 'YXZ');
-    this.camera.fov = 75;
+    this.camera.fov = 74;
     this.camera.updateProjectionMatrix();
     this.flashlight.visible = gameState.flashlightOn && gameState.flashlightBattery > 0;
     this.flashlightBulb.visible = this.flashlight.visible;

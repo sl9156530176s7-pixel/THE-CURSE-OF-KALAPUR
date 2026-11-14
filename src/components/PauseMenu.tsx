@@ -276,6 +276,7 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({ onResume, onSave, onMainMe
               <div className="flex justify-between"><span className="text-stone-400">Q</span><span>Throw Brass Decoy Lota (Lure Villain)</span></div>
               <div className="flex justify-between"><span className="text-stone-400">Tab</span><span>Floor Blueprint Map &amp; 3 Escapes</span></div>
               <div className="flex justify-between"><span className="text-stone-400">Shift</span><span>Sprint (Drains Stamina)</span></div>
+              <div className="flex justify-between"><span className="text-stone-400">Space</span><span>Jump Over Obstacles</span></div>
               <div className="flex justify-between"><span className="text-stone-400">C</span><span>Crouch (Quiet)</span></div>
               <div className="flex justify-between"><span className="text-stone-400">F / Right-Click</span><span>Toggle Flashlight</span></div>
               <div className="flex justify-between"><span className="text-stone-400">R</span><span>Use Spare Battery</span></div>

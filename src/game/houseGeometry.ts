@@ -34,6 +34,8 @@ import {
   createLpgCylinderTexture,
   createIndianFamilyPhotoTexture,
   createStrangeCreationLogoTexture,
+  createHauntedPaintingTexture,
+  createBasementSignTexture,
 } from './textures';
 
 export type InteractiveType =
@@ -81,6 +83,7 @@ export interface InteractiveObject {
   drawerMesh?: THREE.Group;
   targetLight?: THREE.PointLight;
   waterStreamMesh?: THREE.Mesh;
+  colliderBox?: THREE.Box3;
 }
 
 export interface HouseData {
@@ -107,27 +110,28 @@ export interface HouseData {
 
 /**
  * Multi-Level Floor Height Calculator (Three Full Vertical Levels: -3.0 Crypt, 0.0 Ground, +4.5 Upper)
+ * feetY is always the entity's foot elevation so jumping never clips between floors.
  */
-export function getMansionFloorHeight(x: number, z: number, currentY: number): number {
+export function getMansionFloorHeight(x: number, z: number, feetY: number): number {
   // 1. Central Grand Staircase: Z = 7.5 (Y=0) ascending North to Z = -1.5 (Y=4.5)
-  if (Math.abs(x) <= 2.2 && z >= -1.8 && z <= 7.8 && currentY >= -0.8) {
+  if (Math.abs(x) <= 2.15 && z >= -1.8 && z <= 7.8 && feetY >= -0.8) {
     const progress = (7.5 - z) / 9.0;
     return Math.max(0, Math.min(4.5, progress * 4.5));
   }
 
-  // 2. Crypt Staircase (Storage Wing West Alcove): Z = -0.5 (Y=0) descending North to Z = -7.0 (Y=-3.0)
-  if (x >= -19.0 && x <= -15.4 && z >= -7.4 && z <= -0.2 && currentY < 2.2) {
-    const progress = (-0.5 - z) / 6.5;
+  // 2. Crypt / Basement Staircase (Storage Wing West Alcove): Z = 0.0 (Y=0) descending North to Z = -7.0 (Y=-3.0)
+  if (x >= -19.5 && x <= -15.0 && z >= -7.4 && z <= 0.2 && feetY < 2.2) {
+    const progress = (0.0 - z) / 7.0;
     return -Math.max(0, Math.min(1, progress)) * 3.0;
   }
 
   // 3. Subterranean Underground River Crypt Level (Y = -3.0)
-  if (currentY <= -0.85 && x >= -21.5 && x <= -4.5 && z >= -21.5 && z <= -6.8) {
+  if (feetY < -0.45 && x >= -21.5 && x <= -4.5 && z >= -21.5 && z <= -6.8) {
     return -3.0;
   }
 
   // 4. Upper Level Rooms (Y = 4.5)
-  if (currentY >= 2.25) {
+  if (feetY >= 2.8) {
     if (Math.abs(x) <= 4.2 && z >= -8.5 && z <= 8.5) return 4.5;
     if (x >= 3.0 && x <= 20.5 && z >= -8.0 && z <= 8.0) return 4.5;
     if (x >= -20.5 && x <= -3.0 && z >= -8.0 && z <= 8.0) return 4.5;
@@ -292,24 +296,25 @@ export function buildKalapurHouse(): HouseData {
   }
 
   // =========================================================================
-  // 2. GROUND FLOOR FOUNDATION (WITH CRYPT STAIR OPENING AT NW)
+  // 2. GROUND FLOOR FOUNDATION (WITH WIDE BASEMENT STAIR OPENING AT NW)
   // =========================================================================
   // East Half (X: 0..20, Z: -8..17)
   addFloor(10, 0, 4.5, 20, 25, woodFloorMat);
-  // West-Inner Half (X: -15.5..0, Z: -8..17)
-  addFloor(-7.75, 0, 4.5, 15.5, 25, stoneMat);
-  // Far-West South of Crypt Stairs (X: -20..-15.5, Z: -0.5..17)
-  addFloor(-17.75, 0, 8.25, 4.5, 17.5, stoneMat);
-  // Thin strip West of Crypt Stairs (X: -20..-19, Z: -8..-0.5)
-  addFloor(-19.5, 0, -4.25, 1.0, 7.5, stoneMat);
-  // Thin strip North of Crypt Stairs (X: -19..-15.5, Z: -8..-7.0)
-  addFloor(-17.25, 0, -7.5, 3.5, 1.0, stoneMat);
+  // West-Inner Half (X: -15.0..0, Z: -8..17)
+  addFloor(-7.5, 0, 4.5, 15.0, 25, stoneMat);
+  // Far-West South of Basement Stairs (X: -20..-15.0, Z: 0.0..17)
+  addFloor(-17.5, 0, 8.5, 5.0, 17.0, stoneMat);
+  // Thin strip West of Basement Stairs (X: -20..-19.3, Z: -8..0.0)
+  addFloor(-19.65, 0, -4.0, 0.7, 8.0, stoneMat);
+  // Thin strip North of Basement Stairs (X: -19.3..-15.0, Z: -8..-7.0)
+  addFloor(-17.15, 0, -7.5, 4.3, 1.0, stoneMat);
 
   // Grand Checkered Marble Overlay in Central Atrium Foyer (X: -6..6, Z: -2..17)
   addFloor(0, 0.015, 7.5, 12, 19, marbleFloorMat);
 
-  // South Monsoon Courtyard Stone (X: -12..12, Z: 17..33)
-  addFloor(0, 0, 25, 24, 16, stoneMat);
+  // South Monsoon Courtyard Stone (X: -12..12, Z: 17..31) & Exterior Fog Road (Z: 31..55)
+  addFloor(0, 0, 24, 24, 14, stoneMat);
+  addFloor(0, -0.04, 43, 64, 26, stoneMat);
   // East Garage Oil-Stained Concrete Floor (X: 12..24, Z: 17..31)
   addFloor(18, 0.006, 24, 12, 14, garageWallMat);
 
@@ -482,11 +487,11 @@ export function buildKalapurHouse(): HouseData {
   root.add(candleGlow);
   flickerLights.push(candleGlow);
 
-  // Haunted Kitchen & Storage Room (West Wing)
+  // Haunted Kitchen & Storage Room (West Wing) — clean 2.0m Kitchen doorway at X: -13..-11, Z = 5.0
   addWall(-13, 0, 17, 14, WH, TH);
-  addWall(-16.5, 0, 5.0, 7, WH, TH);
-  addWall(-9.5, 0, 5.0, 5, WH, TH);
-  addWall(-13, 2.8, 5.0, 2, 1.4, TH);
+  addWall(-16.5, 0, 5.0, 7.0, WH, TH);
+  addWall(-8.5, 0, 5.0, 5.0, WH, TH);
+  addWall(-12.0, 2.8, 5.0, 2.0, 1.4, TH);
 
   // Tantric Blood Decals
   const tantricTex = createTantricWallWritingTexture();
@@ -502,24 +507,48 @@ export function buildKalapurHouse(): HouseData {
   root.add(bloodDecal2);
 
   // =========================================================================
-  // 5. LEVEL -1: CRYPT STAIRCASE & FLOODED UNDERGROUND RIVER BOAT DOCK (Y = -3.0)
+  // 5. LEVEL -1: OPEN BASEMENT ARCHWAY, CRYPT STAIRCASE & RIVER BOAT DOCK (Y = -3.0)
   // =========================================================================
-  // Crypt Steps descending from Z = -0.5 (Y = 0.0) to Z = -7.0 (Y = -3.0) along X = -17.2
-  const cryptSteps = 14;
+  // Stone Archway Pillars & Overhead "BASEMENT CRYPT" Signboard right at top of stairs (Z = 0.0)
+  for (const ax of [-19.35, -15.0]) {
+    const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.45, 3.3, 0.45), stoneMat);
+    pillar.position.set(ax, 1.65, 0.0);
+    root.add(pillar);
+    colliders.push(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(ax, 1.65, 0.0), new THREE.Vector3(0.45, 3.3, 0.45)));
+  }
+  const basementHeader = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.75, 0.45), stoneMat);
+  basementHeader.position.set(-17.175, 3.45, 0.0);
+  root.add(basementHeader);
+
+  const signTex = createBasementSignTexture();
+  const signMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.7, 0.85),
+    new THREE.MeshBasicMaterial({ map: signTex })
+  );
+  signMesh.position.set(-17.175, 3.35, 0.24);
+  root.add(signMesh);
+
+  // Crypt Steps descending from Z = 0.0 (Y = 0.0) to Z = -7.0 (Y = -3.0) along X = -17.15 (Wide 3.9m stairs!)
+  const cryptSteps = 15;
   for (let s = 0; s < cryptSteps; s++) {
     const sy = -(s + 0.5) * (3.0 / cryptSteps);
-    const sz = -0.5 - s * (6.5 / cryptSteps);
-    const step = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.25, 0.55), stoneMat);
-    step.position.set(-17.2, sy, sz);
+    const sz = -0.22 - s * (6.78 / cryptSteps);
+    const step = new THREE.Mesh(new THREE.BoxGeometry(3.9, 0.24, 0.52), stoneMat);
+    step.position.set(-17.15, sy, sz);
     step.receiveShadow = true;
     root.add(step);
   }
 
-  // Safety Iron Railing along East edge of Crypt Stairwell on Ground Level (X = -15.5, Z: -7.5..-0.5)
-  const cryptGuardRail = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.0, 7.0), ironMat);
-  cryptGuardRail.position.set(-15.5, 0.5, -4.0);
+  // Safety Iron Guardrails flanking Basement Stairwell on Ground Level (X = -15.0 and -19.35, Z: -7.2..-0.2)
+  const cryptGuardRail = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.05, 7.0), ironMat);
+  cryptGuardRail.position.set(-15.0, 0.52, -3.7);
   root.add(cryptGuardRail);
-  colliders.push(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(-15.5, 0.5, -4.0), new THREE.Vector3(0.2, 1.2, 7.0)));
+  colliders.push(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(-15.0, 0.55, -3.7), new THREE.Vector3(0.22, 1.4, 7.0)));
+
+  const cryptGuardWest = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.05, 7.0), ironMat);
+  cryptGuardWest.position.set(-19.35, 0.52, -3.7);
+  root.add(cryptGuardWest);
+  colliders.push(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(-19.35, 0.55, -3.7), new THREE.Vector3(0.22, 1.4, 7.0)));
 
   // Crypt Underground Chamber (X: -21..-5, Z: -21..-7, Floor Y = -3.0, Ceiling Y = -0.25)
   addFloor(-13, -3.0, -10.8, 16, 7.6, stoneMat); // Solid Dock Stone Floor (Z: -14.6..-7.0)
@@ -707,6 +736,10 @@ export function buildKalapurHouse(): HouseData {
   secretBookcaseGroup.add(shelfLeaf);
   root.add(secretBookcaseGroup);
 
+  const secretBookcaseCollider = new THREE.Box3().setFromCenterAndSize(
+    new THREE.Vector3(-12.0, 5.85, -8.0),
+    new THREE.Vector3(2.3, 2.7, 0.55)
+  );
   interactives.push({
     id: 'secret-library-bookcase',
     type: 'secret_bookcase',
@@ -715,24 +748,35 @@ export function buildKalapurHouse(): HouseData {
     mesh: secretBookcaseGroup,
     prompt: 'Pull Suspicious Book [E]',
     isOpen: false,
+    colliderBox: secretBookcaseCollider,
   });
 
   // =========================================================================
-  // 7. COURTYARD, EAST GARAGE + 1954 ESCAPE CAR & FORTIFIED IRON GATE
+  // 7. SEALED COURTYARD PERIMETER, EAST GARAGE + 1954 CAR & FORTIFIED IRON GATE
   // =========================================================================
-  // West Courtyard Wall & Open East Driveway Wall into Garage
-  addWall(-12, 0, 25, TH, 3.5, 16, stoneMat);
-  addWall(12, 0, 18.5, TH, 3.6, 3.0, stoneMat); // North pier of driveway
-  addWall(12, 0, 29.5, TH, 3.6, 7.0, stoneMat); // South pier of driveway
-  addWall(-6.5, 0, 33, 11, 3.5, TH, stoneMat);
-  addWall(6.5, 0, 33, 11, 3.5, TH, stoneMat);
+  // West Courtyard Wall & Open East Driveway Wall into Garage (Closed tightly at Z = 31!)
+  addWall(-12, 0, 24.0, TH, 3.8, 14.4, stoneMat);
+  addWall(12, 0, 18.6, TH, 3.8, 3.2, stoneMat); // North pier of driveway
+  addWall(12, 0, 28.5, TH, 3.8, 5.4, stoneMat); // South pier of driveway joining gate wall tightly at Z=31
+  // Solid Courtyard Perimeter Walls flanking Iron Gate flush at Z = 31 (Zero side gaps!)
+  addWall(-7.05, 0, 31.0, 10.1, 3.8, TH, stoneMat);
+  addWall(7.05, 0, 31.0, 10.1, 3.8, TH, stoneMat);
+  // Iron Gate Stone Header Archway (X = -2.2..+2.2, Y = 3.5..4.2, Z = 31.0)
+  addWall(0, 3.5, 31.0, 4.4, 0.7, 0.6, stoneMat);
+  // Forged Iron Spikes atop South Courtyard Wall (X: -12..-2.4 and 2.4..12)
+  for (let sx = -11.6; sx <= 11.6; sx += 0.6) {
+    if (Math.abs(sx) < 2.3) continue;
+    const spike = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.42, 4), ironMat);
+    spike.position.set(sx, 4.0, 31.0);
+    root.add(spike);
+  }
 
   // --- EAST COURTYARD GARAGE / CARRIAGE SHED (X: 12..24, Z: 17..31) ---
-  addWall(24, 0, 24, TH, 3.8, 14, garageWallMat); // East wall
+  addWall(24, 0, 24, TH, 3.8, 14.4, garageWallMat); // East wall
   addWall(20.5, 0, 17, 7, 3.8, TH, garageWallMat); // North wall East of Puja door
   // Garage South Roll-Up Exit Shutter (X: 18, Z: 31)
-  const garageShutter = new THREE.Mesh(new THREE.BoxGeometry(11.6, 3.5, 0.25), garageWallMat);
-  garageShutter.position.set(18, 1.75, 31);
+  const garageShutter = new THREE.Mesh(new THREE.BoxGeometry(12.2, 3.8, 0.35), garageWallMat);
+  garageShutter.position.set(18, 1.9, 31);
   root.add(garageShutter);
   colliders.push(new THREE.Box3().setFromObject(garageShutter));
   // Garage Roof Slab
@@ -918,6 +962,10 @@ export function buildKalapurHouse(): HouseData {
     mesh: exitDoorMesh,
     prompt: 'Examine Grand Exit Door',
     doorId: 'exitDoor',
+    colliderBox: new THREE.Box3().setFromCenterAndSize(
+      new THREE.Vector3(0, 1.6, 17.0),
+      new THREE.Vector3(2.1, 3.2, 0.35)
+    ),
   });
 
   const escapeTriggerMesh = new THREE.Mesh(new THREE.BoxGeometry(4, 3, 2), new THREE.MeshBasicMaterial({ visible: false }));
@@ -932,33 +980,53 @@ export function buildKalapurHouse(): HouseData {
     prompt: 'Escape through Iron Gate!',
   });
 
-  function createInteriorDoor(id: string, name: string, x: number, y: number, z: number, rotY = 0, reqKey?: string) {
+  function createInteriorDoor(
+    id: string,
+    name: string,
+    x: number,
+    y: number,
+    z: number,
+    rotY = 0,
+    reqKey?: string,
+    width = 1.6
+  ) {
     const doorGroup = new THREE.Group();
     doorGroup.position.set(x, y, z);
     doorGroup.rotation.y = rotY;
-    const leaf = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.8, 0.12), new THREE.MeshStandardMaterial({ map: doorTex, roughness: 0.8 }));
-    leaf.position.set(0.8, 1.4, 0);
+    const leaf = new THREE.Mesh(new THREE.BoxGeometry(width, 2.8, 0.12), new THREE.MeshStandardMaterial({ map: doorTex, roughness: 0.8 }));
+    leaf.position.set(width / 2, 1.4, 0);
     const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.25), brassMat);
-    handle.position.set(1.4, 1.4, 0.1);
+    handle.position.set(width - 0.2, 1.4, 0.1);
     doorGroup.add(leaf, handle);
     root.add(doorGroup);
+
+    // Exact world center of door leaf accounting for rotY
+    const centerX = x + Math.cos(rotY) * (width / 2);
+    const centerZ = z - Math.sin(rotY) * (width / 2);
+    const spanX = Math.abs(Math.cos(rotY)) * width + Math.abs(Math.sin(rotY)) * 0.28;
+    const spanZ = Math.abs(Math.sin(rotY)) * width + Math.abs(Math.cos(rotY)) * 0.28;
+
     interactives.push({
       id,
       type: 'door',
       name,
-      position: new THREE.Vector3(x + 0.8, y + 1.4, z),
+      position: new THREE.Vector3(centerX, y + 1.4, centerZ),
       mesh: doorGroup,
       prompt: reqKey ? `Unlock ${name}` : `Open ${name}`,
       requiresKey: reqKey,
       doorId: id,
+      colliderBox: new THREE.Box3().setFromCenterAndSize(
+        new THREE.Vector3(centerX, y + 1.4, centerZ),
+        new THREE.Vector3(spanX, 2.8, spanZ)
+      ),
     });
     return doorGroup;
   }
 
-  createInteriorDoor('door-master', 'Master Bedroom Door', 3, 4.5, 0.5, Math.PI / 2, 'hasBrassKey');
-  createInteriorDoor('door-guest', 'Guest Bedroom Door', -3, 4.5, 0.5, -Math.PI / 2);
-  createInteriorDoor('door-attic', 'Mystic Sanctum Gate', 0, 4.5, -8, 0, 'hasAtticKey');
-  createInteriorDoor('door-kitchen', 'Kitchen Door', -6, 0, 10.5, Math.PI / 2);
+  createInteriorDoor('door-master', 'Master Bedroom Door', 3.8, 4.5, 0.8, Math.PI / 2, 'hasBrassKey', 1.6);
+  createInteriorDoor('door-guest', 'Guest Bedroom Door', -3.8, 4.5, 0.8, Math.PI / 2, undefined, 1.6);
+  createInteriorDoor('door-attic', 'Mystic Sanctum Gate', -0.95, 4.5, -8, 0, 'hasAtticKey', 1.9);
+  createInteriorDoor('door-kitchen', 'Kitchen Door', -13.0, 0, 5.0, 0, undefined, 1.9);
 
   // =========================================================================
   // 8. FURNITURE, HIDING PLACES, BATHROOMS, MIRRORS & ARCHIVE PLAQUE
@@ -1019,13 +1087,83 @@ export function buildKalapurHouse(): HouseData {
   createCharpaiBed('hide-guest-bed', 'Guest Charpai Bed', -12, 4.5, 3.5);
   createWardrobe('hide-foyer-closet', 'Foyer Cloak Almirah', -4.2, 0, 2.0, Math.PI / 2);
 
-  // Living Diwan Sofa
-  const diwan = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.6, 1.6), new THREE.MeshStandardMaterial({ color: 0x6b141a, roughness: 0.85 }));
-  diwan.position.set(13, 0.3, 10);
-  root.add(diwan);
-  colliders.push(new THREE.Box3().setFromObject(diwan));
+  // Living Room Suite: Plush Velvet Diwan, Armchairs, Brass Coffee Table + Tea Tray, Tall Shelf & Gramophone
+  const velvetRedMat = new THREE.MeshStandardMaterial({ color: 0x6b141a, roughness: 0.85 });
+  const diwan = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.58, 1.4), velvetRedMat);
+  diwan.position.set(13, 0.29, 8.6);
+  const diwanBack = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.65, 0.24), darkTeakMat);
+  diwanBack.position.set(13, 0.72, 9.2);
+  root.add(diwan, diwanBack);
+  colliders.push(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(13, 0.5, 8.7), new THREE.Vector3(3.6, 1.0, 1.5)));
 
-  // Kitchen Counter & Gas Stove & Sink
+  // Coffee Table with Brass Kettle & Cups
+  const coffeeTableTop = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.08, 1.1), darkTeakMat);
+  coffeeTableTop.position.set(13, 0.52, 6.2);
+  root.add(coffeeTableTop);
+  for (const lx of [-0.85, 0.85]) {
+    for (const lz of [-0.45, 0.45]) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.03, 0.5, 8), darkTeakMat);
+      leg.position.set(13 + lx, 0.25, 6.2 + lz);
+      root.add(leg);
+    }
+  }
+  const brassKettle = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 10), brassMat);
+  brassKettle.position.set(12.8, 0.68, 6.2);
+  const brassCup = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.04, 0.1, 8), brassMat);
+  brassCup.position.set(13.2, 0.61, 6.1);
+  root.add(brassKettle, brassCup);
+  colliders.push(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(13, 0.3, 6.2), new THREE.Vector3(2.0, 0.6, 1.1)));
+
+  // Living Room Velvet Armchair + Brass Gramophone Side Stand
+  const armchair = new THREE.Group();
+  armchair.position.set(16.6, 0, 5.4);
+  armchair.rotation.y = -Math.PI / 3;
+  const acSeat = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.45, 1.0), velvetRedMat);
+  acSeat.position.y = 0.225;
+  const acBack = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.72, 0.2), darkTeakMat);
+  acBack.position.set(0, 0.65, -0.4);
+  armchair.add(acSeat, acBack);
+  root.add(armchair);
+  colliders.push(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(16.6, 0.5, 5.4), new THREE.Vector3(1.1, 1.0, 1.1)));
+
+  const gramophoneStand = new THREE.Group();
+  gramophoneStand.position.set(18.6, 0, 2.6);
+  const gBase = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.9, 0.85), darkTeakMat);
+  gBase.position.y = 0.45;
+  const gHorn = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.45, 12, 1, true), brassMat);
+  gHorn.position.set(0, 1.15, 0.1);
+  gHorn.rotation.x = 0.75;
+  gramophoneStand.add(gBase, gHorn);
+  root.add(gramophoneStand);
+  colliders.push(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(18.6, 0.55, 2.6), new THREE.Vector3(0.9, 1.1, 0.9)));
+
+  // 6 Carved Dining Chairs around the Grand Dining Table + Tall Crockery Sideboard
+  for (const cx of [12.1, 13.5, 14.9]) {
+    for (const side of [-1.15, 1.15]) {
+      const ch = new THREE.Group();
+      ch.position.set(cx, 0, -3.5 + side);
+      ch.rotation.y = side > 0 ? Math.PI : 0;
+      const cSeat = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.08, 0.55), darkTeakMat);
+      cSeat.position.y = 0.48;
+      const cBack = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.62, 0.07), velvetRedMat);
+      cBack.position.set(0, 0.82, -0.24);
+      ch.add(cSeat, cBack);
+      root.add(ch);
+      colliders.push(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(cx, 0.5, -3.5 + side), new THREE.Vector3(0.58, 1.0, 0.58)));
+    }
+  }
+  const diningCupboard = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.5, 2.6), darkTeakMat);
+  diningCupboard.position.set(19.2, 1.25, -3.5);
+  root.add(diningCupboard);
+  colliders.push(new THREE.Box3().setFromObject(diningCupboard));
+
+  // Grand Foyer Coat Rack & Velvet Entry Bench
+  const entryBench = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.52, 0.75), velvetRedMat);
+  entryBench.position.set(3.8, 0.26, 7.2);
+  root.add(entryBench);
+  colliders.push(new THREE.Box3().setFromObject(entryBench));
+
+  // Kitchen Counter, Vintage Icebox, Wooden Pantry, Prep Island & Hanging Copper Vessels
   const kitchenCounter = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.95, 1.6), stoneMat);
   kitchenCounter.position.set(-13, 0.475, 15);
   root.add(kitchenCounter);
@@ -1037,6 +1175,24 @@ export function buildKalapurHouse(): HouseData {
   lpgCylinder.position.set(-15.8, 0.55, 15);
   root.add(lpgCylinder);
   colliders.push(new THREE.Box3().setFromObject(lpgCylinder));
+
+  const vintageFridge = new THREE.Mesh(
+    new THREE.BoxGeometry(1.15, 2.1, 1.05),
+    new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4, metalness: 0.45 })
+  );
+  vintageFridge.position.set(-19.1, 1.05, 14.5);
+  root.add(vintageFridge);
+  colliders.push(new THREE.Box3().setFromObject(vintageFridge));
+
+  const pantryCupboard = new THREE.Mesh(new THREE.BoxGeometry(0.95, 2.35, 2.4), darkTeakMat);
+  pantryCupboard.position.set(-19.1, 1.175, 8.2);
+  root.add(pantryCupboard);
+  colliders.push(new THREE.Box3().setFromObject(pantryCupboard));
+
+  const kitchenIsland = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.9, 1.15), darkTeakMat);
+  kitchenIsland.position.set(-14.2, 0.45, 9.5);
+  root.add(kitchenIsland);
+  colliders.push(new THREE.Box3().setFromObject(kitchenIsland));
 
   function createInteractiveWaterTap(id: string, name: string, x: number, y: number, z: number, rotY = 0) {
     const tapGroup = new THREE.Group();
@@ -1064,25 +1220,133 @@ export function buildKalapurHouse(): HouseData {
   }
   createInteractiveWaterTap('tap-kitchen-sink', 'Kitchen Tap', -11.2, 1.05, 15.3, Math.PI);
 
-  // Bathrooms & Haunted Cursed Mirrors
-  addFloor(-16.5, 0.01, 0.5, 6.0, 6.0, bathroomTileMat);
-  addWall(-19.8, 0, 0.5, 0.4, WH, 6.0, wallMat);
-  addWall(-13.5, 0, 2.5, 0.4, WH, 2.0, wallMat);
-  addWall(-13.5, 0, -1.5, 0.4, WH, 2.0, wallMat);
-  addWall(-16.5, 0, 3.5, 6.0, WH, 0.4, wallMat);
-  addWall(-16.5, 0, -2.5, 6.0, WH, 0.4, wallMat);
+  // Ground Floor Bathroom (X: -20.0 .. -13.8, Z: 1.0 .. 5.0 — leaves Z < 1.0 completely open for Basement Entrance!)
+  addFloor(-16.9, 0.012, 3.0, 6.2, 4.0, bathroomTileMat);
+  addWall(-16.9, 0, 1.0, 6.2, WH, 0.35, wallMat);
+  addWall(-13.8, 0, 1.5, 0.35, WH, 1.0, wallMat);
+  addWall(-13.8, 0, 4.3, 0.35, WH, 1.4, wallMat);
+  addWall(-13.8, 2.8, 2.8, 0.35, 1.4, 1.6, wallMat);
+
+  // Bathroom Fixtures: Bathtub, Commode, Vanity Sink + Cracked Mirror
+  const bathtub = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.65, 1.05), ceramicMat);
+  bathtub.position.set(-18.4, 0.325, 1.75);
+  root.add(bathtub);
+  colliders.push(new THREE.Box3().setFromObject(bathtub));
+
+  const toiletBase = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.22, 0.45, 12), ceramicMat);
+  toiletBase.position.set(-18.9, 0.225, 4.25);
+  const toiletTank = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.55, 0.22), ceramicMat);
+  toiletTank.position.set(-19.15, 0.65, 4.25);
+  root.add(toiletBase, toiletTank);
+  colliders.push(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(-18.95, 0.45, 4.25), new THREE.Vector3(0.75, 0.9, 0.6)));
+
+  const bathSink = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.85, 0.55), ceramicMat);
+  bathSink.position.set(-15.6, 0.425, 1.48);
+  root.add(bathSink);
+  colliders.push(new THREE.Box3().setFromObject(bathSink));
+  createInteractiveWaterTap('tap-bath-sink', 'Bathroom Tap', -15.6, 0.92, 1.38, 0);
+
   const gfMirror = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 1.15), mirrorMat);
-  gfMirror.position.set(-14.5, 1.85, 3.28);
-  gfMirror.rotation.y = Math.PI;
+  gfMirror.position.set(-15.6, 1.85, 1.22);
   root.add(gfMirror);
   interactives.push({
     id: 'haunted-mirror-gf',
     type: 'mirror_spook',
     name: 'Cracked Silver Mirror',
-    position: new THREE.Vector3(-14.5, 1.6, 2.9),
+    position: new THREE.Vector3(-15.6, 1.6, 1.6),
     mesh: gfMirror,
     prompt: 'Peer into Cracked Mirror [E]',
   });
+
+  // Storage Wing Furniture: Jumpable Wooden Crates & Dust-Covered Barrels
+  for (const [cx, cy, cz, sx, sy, sz] of [
+    [-8.4, 0, -5.6, 1.25, 0.9, 1.25],
+    [-9.9, 0, -5.8, 1.0, 0.72, 1.0],
+    [-8.2, 0.9, -5.7, 0.75, 0.62, 0.75],
+    [-19.1, -3.0, -9.2, 1.15, 0.85, 1.15],
+    [-6.6, -3.0, -11.5, 1.1, 0.85, 1.1],
+  ] as [number, number, number, number, number, number][]) {
+    const crate = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), darkTeakMat);
+    crate.position.set(cx, cy + sy / 2, cz);
+    root.add(crate);
+    colliders.push(new THREE.Box3().setFromObject(crate));
+  }
+  for (const [bx, by, bz] of [
+    [-7.2, 0, -2.5],
+    [-19.5, -3.0, -12.6],
+    [-16.2, -3.0, -13.2],
+  ] as [number, number, number][]) {
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.42, 0.95, 12), darkTeakMat);
+    barrel.position.set(bx, by + 0.475, bz);
+    root.add(barrel);
+    colliders.push(new THREE.Box3().setFromObject(barrel));
+  }
+
+  // Crypt Underground Ritual Stone Altar
+  const cryptAltar = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.92, 0.95), stoneMat);
+  cryptAltar.position.set(-14.2, -2.54, -8.3);
+  root.add(cryptAltar);
+  colliders.push(new THREE.Box3().setFromObject(cryptAltar));
+
+  // Garage Props: Spare Tire Stack, Oil Drums & Mechanic Red Tool Cabinet
+  for (let t = 0; t < 3; t++) {
+    const tire = new THREE.Mesh(
+      new THREE.TorusGeometry(0.36, 0.14, 10, 16),
+      new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 })
+    );
+    tire.rotation.x = Math.PI / 2;
+    tire.position.set(13.4, 0.14 + t * 0.26, 28.5);
+    root.add(tire);
+  }
+  colliders.push(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(13.4, 0.45, 28.5), new THREE.Vector3(0.95, 0.9, 0.95)));
+
+  const redToolChest = new THREE.Mesh(
+    new THREE.BoxGeometry(1.1, 1.15, 0.75),
+    new THREE.MeshStandardMaterial({ color: 0x991b1b, roughness: 0.45, metalness: 0.4 })
+  );
+  redToolChest.position.set(22.9, 0.575, 27.2);
+  root.add(redToolChest);
+  colliders.push(new THREE.Box3().setFromObject(redToolChest));
+
+  // Upper Floor Room Furniture: Nursery Cradle, Bookshelves in Library, Sanctum Pillars
+  const crib = new THREE.Group();
+  crib.position.set(14.5, 4.5, -5.2);
+  const cribBase = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.75, 1.0), darkTeakMat);
+  cribBase.position.y = 0.45;
+  crib.add(cribBase);
+  root.add(crib);
+  colliders.push(new THREE.Box3().setFromObject(cribBase));
+
+  const toyChest = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.68, 0.75), velvetRedMat);
+  toyChest.position.set(9.2, 4.84, -6.5);
+  root.add(toyChest);
+  colliders.push(new THREE.Box3().setFromObject(toyChest));
+
+  // Tall Library Bookcases along West Library Walls
+  for (const [bx, bz, rot] of [
+    [-19.2, -4.0, Math.PI / 2],
+    [-19.2, -1.5, Math.PI / 2],
+    [-16.0, -7.2, 0],
+  ] as [number, number, number][]) {
+    const bc = new THREE.Mesh(new THREE.BoxGeometry(2.1, 2.9, 0.55), darkTeakMat);
+    bc.position.set(bx, 4.5 + 1.45, bz);
+    bc.rotation.y = rot;
+    root.add(bc);
+    colliders.push(new THREE.Box3().setFromObject(bc));
+  }
+
+  // 4 Carved Mystic Sanctum Stone Ritual Pillars surrounding the Mandala
+  for (const [px, pz] of [
+    [-4.2, -11.0],
+    [4.2, -11.0],
+    [-4.2, -17.0],
+    [4.2, -17.0],
+  ] as [number, number][]) {
+    const sPil = new THREE.Mesh(new THREE.BoxGeometry(0.65, 4.0, 0.65), stoneMat);
+    sPil.position.set(px, 6.5, pz);
+    root.add(sPil);
+    colliders.push(new THREE.Box3().setFromObject(sPil));
+  }
 
   // Grandfathers Clocks
   function createGrandfatherClock(x: number, y: number, z: number, rotY = 0) {
@@ -1133,8 +1397,11 @@ export function buildKalapurHouse(): HouseData {
   const carpetMat = new THREE.MeshStandardMaterial({ map: createCarpetTexture(), roughness: 0.85, polygonOffset: true, polygonOffsetFactor: -1 });
   for (const [cx, cy, cz, cw, cd] of [
     [0, 0.025, 11, 5.0, 7.0],
-    [13, 0.025, 10, 6.5, 7.5],
-    [12, 4.525, 0, 5.5, 6.5],
+    [13, 0.025, 6.8, 6.5, 6.5],
+    [13.5, 0.025, -3.5, 6.0, 4.8],
+    [12, 4.525, 4.0, 5.5, 5.5],
+    [-12, 4.525, 4.0, 5.5, 5.5],
+    [-12, 4.525, -4.0, 5.5, 5.5],
   ] as [number, number, number, number, number][]) {
     const carp = new THREE.Mesh(new THREE.PlaneGeometry(cw, cd), carpetMat);
     carp.rotation.x = -Math.PI / 2;
@@ -1151,17 +1418,17 @@ export function buildKalapurHouse(): HouseData {
   });
   for (const wz of [7, 12]) {
     const winMesh = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 3.0), windowMat);
-    winMesh.position.set(19.83, 2.2, wz);
+    winMesh.position.set(19.78, 2.2, wz);
     winMesh.rotation.y = -Math.PI / 2;
     root.add(winMesh);
     addMoonbeam(17.5, 1.9, wz, -Math.PI / 2);
   }
   const northWin = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 3.4), windowMat);
-  northWin.position.set(0, 6.4, -19.83);
+  northWin.position.set(0, 6.4, -19.78);
   root.add(northWin);
   addMoonbeam(0, 5.8, -17.5, 0);
 
-  // Wall Portraits
+  // Wall Portraits & Paintings on EVERY Room Wall
   const tatyaPhotoTex = createTatyaWallPhotoTexture();
   const tatyaEyesTex = createTatyaCloseupEyesTexture();
   const tatyaDaggerTex = createTatyaDaggerPortraitTexture();
@@ -1169,30 +1436,91 @@ export function buildKalapurHouse(): HouseData {
   const tatyaShrineTex = createTatyaShrineTexture();
   const annabelleTex = createAnnabelleDollTexture();
   const dollFamTex = createCursedDollFamilyTexture(0);
+  const dollTwinsTex = createCursedDollFamilyTexture(1);
+  const dollMasterTex = createCursedDollFamilyTexture(2);
   const famTex = createIndianFamilyPhotoTexture(0);
+  const wedTex = createIndianFamilyPhotoTexture(1);
+  const purvajaTex = createIndianFamilyPhotoTexture(2);
   const ancTex = createAncestorGalleryTexture(0);
+  const paintTextures = [0, 1, 2, 3, 4, 5].map((i) => createHauntedPaintingTexture(i));
 
-  function addPastedWallPortrait(x: number, y: number, z: number, rotY: number, w: number, h: number, tex: THREE.Texture) {
+  function addPastedWallPortrait(
+    x: number,
+    y: number,
+    z: number,
+    rotY: number,
+    w: number,
+    h: number,
+    tex: THREE.Texture,
+    useBrassFrame = false
+  ) {
     const g = new THREE.Group();
     g.position.set(x, y, z);
     g.rotation.y = rotY;
-    const frame = new THREE.Mesh(new THREE.BoxGeometry(w + 0.14, h + 0.14, 0.035), darkTeakMat);
-    const photo = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.4 }));
-    photo.position.z = 0.019;
+    const frame = new THREE.Mesh(
+      new THREE.BoxGeometry(w + 0.16, h + 0.16, 0.045),
+      useBrassFrame ? brassMat : darkTeakMat
+    );
+    const photo = new THREE.Mesh(
+      new THREE.PlaneGeometry(w, h),
+      new THREE.MeshStandardMaterial({ map: tex, roughness: 0.42 })
+    );
+    photo.position.z = 0.025;
     g.add(frame, photo);
     root.add(g);
   }
 
-  addPastedWallPortrait(4.5, 2.3, 16.832, Math.PI, 1.1, 1.4, tatyaPhotoTex);
-  addPastedWallPortrait(-4.5, 2.3, 16.832, Math.PI, 1.1, 1.4, tatyaEyesTex);
-  addPastedWallPortrait(19.832, 2.3, 5.0, -Math.PI / 2, 1.2, 1.5, tatyaDaggerTex);
-  addPastedWallPortrait(13.5, 2.3, 16.832, Math.PI, 1.3, 1.6, tatyaShrineTex);
-  addPastedWallPortrait(-13.5, 2.2, -7.832, 0, 1.2, 1.5, tatyaArchiveTex);
-  addPastedWallPortrait(0, 3.2, -7.832, 0, 1.4, 1.7, famTex);
-  addPastedWallPortrait(3.632, 6.3, 0, -Math.PI / 2, 1.1, 1.4, dollFamTex);
-  addPastedWallPortrait(-3.632, 6.3, 0, Math.PI / 2, 1.1, 1.4, annabelleTex);
-  addPastedWallPortrait(0, 6.6, -19.832, 0, 1.6, 2.0, tatyaShrineTex);
-  addPastedWallPortrait(-3.5, 6.4, -19.832, 0, 1.3, 1.6, ancTex);
+  // Grand Foyer & Staircase Walls
+  addPastedWallPortrait(4.5, 2.3, 16.77, Math.PI, 1.15, 1.45, tatyaPhotoTex);
+  addPastedWallPortrait(-4.5, 2.3, 16.77, Math.PI, 1.15, 1.45, tatyaEyesTex);
+  addPastedWallPortrait(0, 3.2, -7.77, 0, 1.5, 1.8, famTex, true);
+  addPastedWallPortrait(-4.0, 2.3, -7.77, 0, 1.35, 1.0, paintTextures[0]);
+  addPastedWallPortrait(4.0, 2.3, -7.77, 0, 1.35, 1.0, paintTextures[5]);
+
+  // Living Room & Dining Hall (East Ground Wing)
+  addPastedWallPortrait(19.77, 2.3, 3.6, -Math.PI / 2, 1.25, 1.55, tatyaDaggerTex);
+  addPastedWallPortrait(10.0, 2.3, 1.73, 0, 1.45, 1.08, paintTextures[1], true);
+  addPastedWallPortrait(16.0, 2.3, 10.27, Math.PI, 1.45, 1.08, paintTextures[0]);
+  addPastedWallPortrait(13.5, 2.4, -7.77, 0, 1.55, 1.15, wedTex, true);
+  addPastedWallPortrait(19.77, 2.4, -3.5, -Math.PI / 2, 1.45, 1.08, purvajaTex);
+  addPastedWallPortrait(9.2, 2.3, 1.27, Math.PI, 1.4, 1.05, paintTextures[4]);
+
+  // Puja Prayer Room & Garage
+  addPastedWallPortrait(13.5, 2.3, 16.77, Math.PI, 1.3, 1.6, tatyaShrineTex, true);
+  addPastedWallPortrait(19.77, 2.3, 13.5, -Math.PI / 2, 1.45, 1.08, paintTextures[4]);
+  addPastedWallPortrait(9.0, 2.3, 10.73, 0, 1.4, 1.05, paintTextures[5]);
+  addPastedWallPortrait(23.77, 2.1, 22.0, -Math.PI / 2, 1.6, 1.2, paintTextures[3], true);
+  addPastedWallPortrait(20.5, 2.1, 17.23, 0, 1.5, 1.12, paintTextures[0]);
+
+  // Kitchen, Storage Wing & Basement Entrance Walls (West Ground Wing)
+  addPastedWallPortrait(-13.5, 2.3, 16.77, Math.PI, 1.45, 1.08, paintTextures[5]);
+  addPastedWallPortrait(-19.77, 2.3, 11.2, Math.PI / 2, 1.45, 1.08, paintTextures[1]);
+  addPastedWallPortrait(-9.0, 2.3, 5.23, 0, 1.35, 1.0, paintTextures[0]);
+  addPastedWallPortrait(-13.5, 2.3, -7.77, 0, 1.25, 1.55, tatyaArchiveTex);
+  addPastedWallPortrait(-9.0, 2.3, -7.77, 0, 1.5, 1.12, paintTextures[2], true); // River boat clue!
+  addPastedWallPortrait(-9.0, 2.3, 4.77, Math.PI, 1.4, 1.05, paintTextures[4]);
+
+  // Subterranean Basement / River Crypt Walls (Y = -3.0)
+  addPastedWallPortrait(-20.77, -1.35, -10.5, Math.PI / 2, 1.45, 1.08, paintTextures[2], true);
+  addPastedWallPortrait(-5.23, -1.35, -10.5, -Math.PI / 2, 1.45, 1.08, paintTextures[4]);
+  addPastedWallPortrait(-10.0, -1.35, -7.23, Math.PI, 1.35, 1.0, dollMasterTex);
+
+  // Upper Floor Gallery, Master Bedroom, Nursery, Guest Bedroom, Library, Secret Archive & Sanctum Walls
+  addPastedWallPortrait(3.57, 6.3, 0, -Math.PI / 2, 1.15, 1.45, dollFamTex);
+  addPastedWallPortrait(-3.57, 6.3, 0, Math.PI / 2, 1.15, 1.45, annabelleTex);
+  addPastedWallPortrait(19.77, 6.4, 4.0, -Math.PI / 2, 1.45, 1.08, famTex, true);
+  addPastedWallPortrait(12.0, 6.4, 7.77, Math.PI, 1.5, 1.12, paintTextures[1]);
+  addPastedWallPortrait(8.0, 6.4, 0.23, 0, 1.35, 1.0, paintTextures[0]);
+  addPastedWallPortrait(19.77, 6.4, -4.0, -Math.PI / 2, 1.2, 1.5, dollTwinsTex);
+  addPastedWallPortrait(12.0, 6.4, -7.77, 0, 1.45, 1.08, paintTextures[3]);
+  addPastedWallPortrait(-19.77, 6.4, 4.0, Math.PI / 2, 1.45, 1.08, paintTextures[5]);
+  addPastedWallPortrait(-12.0, 6.4, 7.77, Math.PI, 1.45, 1.08, paintTextures[1]);
+  addPastedWallPortrait(-19.77, 6.4, -6.0, Math.PI / 2, 1.3, 1.5, dollMasterTex);
+  addPastedWallPortrait(-12.0, 6.4, -15.77, 0, 1.5, 1.12, paintTextures[2], true); // Secret Archive Boat clue!
+  addPastedWallPortrait(0, 6.6, -19.77, 0, 1.6, 2.0, tatyaShrineTex, true);
+  addPastedWallPortrait(-4.2, 6.5, -19.77, 0, 1.3, 1.6, ancTex);
+  addPastedWallPortrait(4.2, 6.5, -19.77, 0, 1.45, 1.08, paintTextures[4], true);
+  addPastedWallPortrait(7.77, 6.5, -14.0, -Math.PI / 2, 1.45, 1.08, paintTextures[0]);
 
   // =========================================================================
   // 9. DRAWER TABLES & 3-ESCAPE TOOL SHUFFLE (100% ACCESSIBLE POOL!)
@@ -1237,6 +1565,9 @@ export function buildKalapurHouse(): HouseData {
     drawerBottom.position.set(0, -0.06, 0.05);
     drawerGroup.add(drawerFront, knob, drawerBottom);
 
+    const frontDirX = Math.sin(rotY);
+    const frontDirZ = Math.cos(rotY);
+
     if (itemConfig) {
       itemConfig.mesh.position.set(0, -0.01, 0.1);
       attachItemGlint(itemConfig.mesh, 0xfbbf24, 0.14);
@@ -1246,7 +1577,7 @@ export function buildKalapurHouse(): HouseData {
         id: itemConfig.id,
         type: itemConfig.type,
         name: itemConfig.name,
-        position: new THREE.Vector3(x, y + 0.8, z),
+        position: new THREE.Vector3(x + frontDirX * 0.1, y + 0.72, z + frontDirZ * 0.1),
         mesh: itemConfig.mesh,
         prompt: `Pick up ${itemConfig.name} [E]`,
         drawerId: id,
@@ -1258,13 +1589,15 @@ export function buildKalapurHouse(): HouseData {
 
     tableGroup.add(drawerGroup);
     root.add(tableGroup);
-    colliders.push(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(x, y + 0.45, z), new THREE.Vector3(1.5, 0.9, 0.9)));
+    const colSizeX = Math.abs(Math.cos(rotY)) * 1.5 + Math.abs(Math.sin(rotY)) * 0.9;
+    const colSizeZ = Math.abs(Math.sin(rotY)) * 1.5 + Math.abs(Math.cos(rotY)) * 0.9;
+    colliders.push(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(x, y + 0.45, z), new THREE.Vector3(colSizeX, 0.9, colSizeZ)));
 
     interactives.push({
       id: `drawer-${id}`,
       type: 'drawer',
       name: `${tableName} Drawer`,
-      position: new THREE.Vector3(x, y + 0.75, z + (rotY === 0 ? 0.45 : rotY === Math.PI ? -0.45 : 0)),
+      position: new THREE.Vector3(x + frontDirX * 0.42, y + 0.73, z + frontDirZ * 0.42),
       mesh: drawerGroup,
       drawerMesh: drawerGroup,
       drawerId: id,

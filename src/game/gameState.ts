@@ -196,6 +196,7 @@ export class GameStateManager {
   public onTouchFlashlight?: () => void;
   public onTouchUseBattery?: () => void;
   public onTouchThrowDecoy?: () => void;
+  public onTouchJump?: () => void;
   public isTouchDevice = false;
 
   // Puzzle & World progression

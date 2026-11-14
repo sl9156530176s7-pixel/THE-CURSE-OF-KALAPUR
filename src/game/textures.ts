@@ -2717,4 +2717,233 @@ export function createBreakerPanelTexture(): THREE.CanvasTexture {
   return createTextureFromCanvas(canvas);
 }
 
+// 36. Diverse Haunted Oil Paintings for Every Mansion Wall (6 Distinct Works)
+export function createHauntedPaintingTexture(variant = 0): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 384;
+  const ctx = canvas.getContext('2d')!;
+
+  const v = ((variant % 6) + 6) % 6;
+
+  // Deep oil-canvas underpainting
+  const bg = ctx.createRadialGradient(256, 175, 20, 256, 192, 300);
+  if (v === 0) {
+    // 0: Moonlit Kalapur Haveli in Storm
+    bg.addColorStop(0, '#1e3a5f');
+    bg.addColorStop(0.65, '#0b1628');
+    bg.addColorStop(1, '#04070e');
+  } else if (v === 1) {
+    // 1: Crimson Zamindar Lady Portrait
+    bg.addColorStop(0, '#4a1219');
+    bg.addColorStop(0.65, '#1e070b');
+    bg.addColorStop(1, '#080203');
+  } else if (v === 2) {
+    // 2: Adrift Boat on the Subterranean Black River (Clue artwork)
+    bg.addColorStop(0, '#0f3d3e');
+    bg.addColorStop(0.65, '#061a1d');
+    bg.addColorStop(1, '#02090b');
+  } else if (v === 3) {
+    // 3: 1954 Dark Sedan in Fog (Clue artwork)
+    bg.addColorStop(0, '#363b45');
+    bg.addColorStop(0.65, '#15181e');
+    bg.addColorStop(1, '#06070a');
+  } else if (v === 4) {
+    // 4: Blood Solar Eclipse over Ancient Temple
+    bg.addColorStop(0, '#5c1414');
+    bg.addColorStop(0.55, '#1c0910');
+    bg.addColorStop(1, '#070306');
+  } else {
+    // 5: Cursed Sacred Peepal Tree at 3 AM
+    bg.addColorStop(0, '#1f2937');
+    bg.addColorStop(0.6, '#0d1117');
+    bg.addColorStop(1, '#030508');
+  }
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, 512, 384);
+
+  if (v === 0) {
+    // Full eerie moon + haveli domes silhouette + single lit red attic window
+    ctx.fillStyle = '#dbeafe';
+    ctx.beginPath();
+    ctx.arc(370, 92, 36, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#070b12';
+    ctx.fillRect(90, 175, 330, 155);
+    ctx.beginPath();
+    ctx.arc(165, 175, 42, Math.PI, 0);
+    ctx.arc(256, 155, 55, Math.PI, 0);
+    ctx.arc(348, 175, 42, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = '#dc2626';
+    ctx.fillRect(247, 170, 18, 28);
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillRect(156, 235, 12, 20);
+    ctx.fillRect(342, 235, 12, 20);
+  } else if (v === 1) {
+    // Pale weeping noblewoman in red saree
+    ctx.fillStyle = '#7f1d1d';
+    ctx.beginPath();
+    ctx.moveTo(155, 360);
+    ctx.lineTo(205, 185);
+    ctx.lineTo(307, 185);
+    ctx.lineTo(357, 360);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#e7d5c2';
+    ctx.beginPath();
+    ctx.ellipse(256, 138, 42, 52, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#0f0a09';
+    ctx.beginPath();
+    ctx.arc(256, 124, 48, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = '#991b1b';
+    ctx.fillRect(252, 114, 8, 8);
+    ctx.fillStyle = '#09090b';
+    ctx.beginPath();
+    ctx.arc(240, 134, 6, 0, Math.PI * 2);
+    ctx.arc(272, 134, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#dc2626';
+    ctx.fillRect(239, 141, 3, 22);
+    ctx.fillRect(271, 141, 3, 22);
+  } else if (v === 2) {
+    // Canal arches, shimmering water & silhouette boat with lantern
+    ctx.fillStyle = '#020608';
+    ctx.fillRect(0, 235, 512, 149);
+    ctx.strokeStyle = 'rgba(45, 212, 191, 0.35)';
+    ctx.lineWidth = 2;
+    for (let ry = 250; ry < 370; ry += 18) {
+      ctx.beginPath();
+      ctx.moveTo(40 + (ry % 25), ry);
+      ctx.lineTo(460 - (ry % 35), ry);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#26170d';
+    ctx.beginPath();
+    ctx.moveTo(150, 232);
+    ctx.lineTo(350, 232);
+    ctx.lineTo(318, 266);
+    ctx.lineTo(182, 266);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#fef08a';
+    ctx.beginPath();
+    ctx.arc(170, 214, 8, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (v === 3) {
+    // 1954 Vintage green-black sedan headlights cutting through dark monsoon fog
+    ctx.fillStyle = '#14332b';
+    ctx.fillRect(140, 200, 232, 72);
+    ctx.fillRect(175, 152, 162, 52);
+    ctx.fillStyle = '#0a0a0c';
+    ctx.beginPath();
+    ctx.arc(185, 272, 26, 0, Math.PI * 2);
+    ctx.arc(327, 272, 26, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(254, 240, 138, 0.25)';
+    ctx.beginPath();
+    ctx.moveTo(165, 235);
+    ctx.lineTo(60, 355);
+    ctx.lineTo(220, 355);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(347, 235);
+    ctx.lineTo(290, 355);
+    ctx.lineTo(452, 355);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#fef08a';
+    ctx.beginPath();
+    ctx.arc(168, 236, 9, 0, Math.PI * 2);
+    ctx.arc(344, 236, 9, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (v === 4) {
+    // Crimson eclipse ring & dark temple spire
+    ctx.fillStyle = '#dc2626';
+    ctx.beginPath();
+    ctx.arc(256, 132, 56, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#090306';
+    ctx.beginPath();
+    ctx.arc(256, 132, 48, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(190, 355);
+    ctx.lineTo(256, 185);
+    ctx.lineTo(322, 355);
+    ctx.closePath();
+    ctx.fill();
+  } else {
+    // Gnarled peepal tree with glowing hanging lantern & shadow watcher
+    ctx.fillStyle = '#090a0d';
+    ctx.fillRect(236, 160, 40, 195);
+    ctx.beginPath();
+    ctx.arc(256, 138, 108, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#d97706';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(325, 160);
+    ctx.lineTo(325, 225);
+    ctx.stroke();
+    ctx.fillStyle = '#fbbf24';
+    ctx.beginPath();
+    ctx.arc(325, 233, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(202, 286, 4, 3);
+    ctx.fillRect(216, 286, 4, 3);
+  }
+
+  // Aged oil brushstroke craquelure + antique brass gallery border
+  ctx.strokeStyle = 'rgba(0,0,0,0.32)';
+  ctx.lineWidth = 1.2;
+  for (let c = 0; c < 7; c++) {
+    ctx.beginPath();
+    ctx.moveTo(Math.random() * 512, Math.random() * 384);
+    ctx.lineTo(Math.random() * 512, Math.random() * 384);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = '#b48332';
+  ctx.lineWidth = 10;
+  ctx.strokeRect(5, 5, 502, 374);
+  ctx.strokeStyle = '#472c0c';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(14, 14, 484, 356);
+
+  return createTextureFromCanvas(canvas);
+}
+
+// 37. Weathered Brass & Stone Signboard over Basement / Crypt Entrance
+export function createBasementSignTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 160;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#181411';
+  ctx.fillRect(0, 0, 512, 160);
+  ctx.strokeStyle = '#b45309';
+  ctx.lineWidth = 8;
+  ctx.strokeRect(6, 6, 500, 148);
+  ctx.strokeStyle = '#14b8a6';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(16, 16, 480, 128);
+
+  ctx.fillStyle = '#fde68a';
+  ctx.font = 'bold 34px Cinzel, serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('BASEMENT CRYPT', 256, 76);
+
+  ctx.fillStyle = '#5eead4';
+  ctx.font = 'bold 20px monospace';
+  ctx.fillText('▼ UNDERGROUND RIVER BOAT ▼', 256, 118);
+
+  return createTextureFromCanvas(canvas);
+}
+
+
 

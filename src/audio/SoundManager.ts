@@ -1530,6 +1530,29 @@ class SoundManager {
     this.playNoiseSwoosh(1.0, 0.25);
   }
 
+  // Player Jump & Boot Landing Cue
+  public playJumpSound() {
+    if (!this.ctx || !this.sfxGain) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(115, now);
+    osc.frequency.exponentialRampToValueAtTime(195, now + 0.09);
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(now);
+    osc.stop(now + 0.12);
+    this.playNoiseSwoosh(0.14, 0.14);
+  }
+
+  public playLandSound(surface: 'wood' | 'stone' | 'water' = 'wood') {
+    if (!this.ctx || !this.sfxGain) return;
+    this.playFootstep(true, 0, surface);
+  }
+
   public dispose() {
     this.stopDrone();
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);

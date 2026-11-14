@@ -31,6 +31,7 @@ import {
   CircleDot,
   CheckCircle2,
   Circle,
+  ArrowUp,
 } from 'lucide-react';
 import officialLogoImg from '../assets/images/kalapur_official_logo_1793628694332.jpg';
 
@@ -230,6 +231,10 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
       gameState.isCrouching = !gameState.isCrouching;
       gameState.notify();
     });
+  };
+
+  const handleTouchJump = (e: React.MouseEvent | React.TouchEvent) => {
+    triggerTouchAction(e, () => gameState.onTouchJump?.());
   };
 
   // Global window listeners so dragging outside boundaries is smooth and never gets stuck
@@ -850,22 +855,37 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
             </button>
           </div>
 
-          {/* Primary Action Button [E / INTERACT] */}
-          <button
-            onTouchStart={handleTouchInteract}
-            onClick={handleTouchInteract}
-            className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 flex flex-col items-center justify-center shadow-2xl transition-all duration-150 active:scale-90 cursor-pointer touch-none ${
-              currentInteractive || isHiding
-                ? 'bg-linear-to-b from-red-600 to-red-900 border-red-300 text-white shadow-[0_0_28px_rgba(220,38,38,0.85)]'
-                : 'bg-stone-950/90 border-stone-600 text-stone-300'
-            }`}
-            title="Interact (E)"
-          >
-            <Hand className="w-8 h-8 sm:w-9 sm:h-9 mb-1" />
-            <span className="text-[11px] sm:text-xs font-mono font-bold tracking-wider uppercase">
-              {isHiding ? 'EXIT' : currentInteractive ? 'ACTION' : 'USE'}
-            </span>
-          </button>
+          {/* Right Thumb Column: JUMP above Primary ACTION Button */}
+          <div className="flex flex-col items-center gap-2.5 sm:gap-3">
+            <button
+              onTouchStart={handleTouchJump}
+              onClick={handleTouchJump}
+              className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 bg-stone-950/90 hover:bg-stone-800 border-amber-500/80 text-amber-200 flex flex-col items-center justify-center shadow-xl transition active:scale-90 cursor-pointer touch-none"
+              title="Jump (Space)"
+            >
+              <ArrowUp className="w-6 h-6 sm:w-7 sm:h-7 mb-0.5 text-amber-400" />
+              <span className="text-[9px] sm:text-[10px] font-mono font-bold uppercase">
+                JUMP
+              </span>
+            </button>
+
+            {/* Primary Action Button [E / INTERACT] */}
+            <button
+              onTouchStart={handleTouchInteract}
+              onClick={handleTouchInteract}
+              className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 flex flex-col items-center justify-center shadow-2xl transition-all duration-150 active:scale-90 cursor-pointer touch-none ${
+                currentInteractive || isHiding
+                  ? 'bg-linear-to-b from-red-600 to-red-900 border-red-300 text-white shadow-[0_0_28px_rgba(220,38,38,0.85)]'
+                  : 'bg-stone-950/90 border-stone-600 text-stone-300'
+              }`}
+              title="Interact (E)"
+            >
+              <Hand className="w-8 h-8 sm:w-9 sm:h-9 mb-1" />
+              <span className="text-[11px] sm:text-xs font-mono font-bold tracking-wider uppercase">
+                {isHiding ? 'EXIT' : currentInteractive ? 'ACTION' : 'USE'}
+              </span>
+            </button>
+          </div>
         </div>
       ) : (
         /* DESKTOP INVENTORY TRAY (Gate, Car, Boat + Decoys & Batteries) */

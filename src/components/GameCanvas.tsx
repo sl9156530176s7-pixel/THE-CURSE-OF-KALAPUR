@@ -18,7 +18,7 @@ interface GameCanvasProps {
 
 const CLOCK_1_POS = new THREE.Vector3(18.5, 1.4, 4.5);
 const CLOCK_2_POS = new THREE.Vector3(-3.2, 5.5, 2.5);
-const GF_BATH_POS = new THREE.Vector3(-16.5, 1.0, 0.5);
+const GF_BATH_POS = new THREE.Vector3(-16.5, 1.0, 2.8);
 const UF_BATH_POS = new THREE.Vector3(16.5, 5.5, -5.5);
 const FOG_BASE_COLOR = new THREE.Color(0x060810);
 const FOG_CRYPT_COLOR = new THREE.Color(0x031114);
@@ -78,6 +78,8 @@ function syncHouseWithGameState(houseData: HouseData) {
       if (gameState.cellarBarsPried || gameState.cellarSealBroken) {
         item.action?.();
       }
+    } else if (item.type === 'door' && item.doorId === 'exitDoor' && gameState.exitUnlocked) {
+      item.prompt = 'Open Grand Exit Door';
     }
   }
 }
@@ -602,7 +604,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
               dec.mesh.position.addScaledVector(dec.vel, delta);
               dec.mesh.rotation.x += delta * 10;
               dec.mesh.rotation.z += delta * 8;
-              const floorY = getMansionFloorHeight(dec.mesh.position.x, dec.mesh.position.z, dec.mesh.position.y);
+              const floorY = getMansionFloorHeight(dec.mesh.position.x, dec.mesh.position.z, Math.max(-3.0, dec.mesh.position.y - 0.1));
               if (dec.mesh.position.y <= floorY + 0.1 || dec.age > 1.8) {
                 dec.landed = true;
                 dec.age = 0;
