@@ -23,13 +23,14 @@ export class KalapurGhost {
 
   // Speeds
   public patrolSpeed = 2.0;
-  public chaseSpeed = 4.2;
+  public chaseSpeed = 4.15;
   public currentSpeed = 2.0;
 
   // AI Timers & memory
   private stateTimer = 0;
   public sightKillTimer = 0;
   public stunTimer = 0;
+  private chaseSteerSign = 1;
   private lastKnownPlayerPos: THREE.Vector3 = new THREE.Vector3();
   private hasDirectVision = false;
   private footstepTimer = 0;
@@ -566,9 +567,8 @@ export class KalapurGhost {
     const isTatya = gameState.settings.villainType === 'tatya';
     const diff = gameState.settings.difficulty || 'normal';
     const dayScale = 1 + (gameState.currentDay - 1) * 0.08;
-    const speedMult = (diff === 'hardcore' ? 1.26 : diff === 'nightmare' ? 1.14 : 1.0) * dayScale;
+    const speedMult = (diff === 'hardcore' ? 1.24 : diff === 'nightmare' ? 1.12 : 1.0) * dayScale;
     const hearingMult = (diff === 'hardcore' ? 1.32 : diff === 'nightmare' ? 1.16 : 1.0) * dayScale;
-    const sightKillThreshold = diff === 'hardcore' ? 0.68 : diff === 'nightmare' ? 0.85 : 1.05;
 
     // 00. Sacred Vibhuti Stun State: freezes villain completely in trembling crouch
     if (this.stunTimer > 0) {
@@ -696,8 +696,11 @@ export class KalapurGhost {
       this.mesh.position.y = this.position.y; // Walks firmly on floor - NO FLYING!
     }
 
-    // Distance to player
+    // Distance to player (both 3D and same-floor horizontal proximity)
     const distToPlayer = this.position.distanceTo(playerPos);
+    const horizDist = Math.hypot(this.position.x - playerPos.x, this.position.z - playerPos.z);
+    const vertDiff = Math.abs((this.position.y + 1.1) - playerPos.y);
+    const closeReachRange = diff === 'hardcore' ? 1.55 : diff === 'nightmare' ? 1.45 : 1.38;
     gameState.ghostDistance = distToPlayer;
 
     // Trigger dialogue and head lock when player spots Tatya directly
@@ -862,9 +865,9 @@ export class KalapurGhost {
         this.eyesLight.color.set(0xff0000);
         this.eyesLight.intensity = 5.0;
 
-        // If player hid while ghost was chasing, check hiding spot if saw them hide point-blank (<2.4m)!
+        // If player hid while ghost was chasing, only catch if right beside hiding spot (<1.65m); otherwise search nearby
         if (isPlayerHiding) {
-          if (distToPlayer < 2.3) {
+          if (horizDist < 1.65 && vertDiff < 1.85) {
             this.sightKillTimer = 0;
             onCatchPlayer();
             return;
@@ -878,28 +881,41 @@ export class KalapurGhost {
           break;
         }
 
+        // Track live player position whenever in line of sight OR making audible footsteps while chased
         if (this.hasDirectVision) {
           this.lastKnownPlayerPos.copy(playerPos);
-          this.stateTimer = 0; // reset chase memory timer
-          this.sightKillTimer += delta;
-          this.currentSpeed = 5.5 * speedMult; // supernatural puppet surge
+          this.stateTimer = 0; // reset lost-sight memory timer while actively seeing player
+          this.currentSpeed = 4.55 * speedMult;
+        } else if (ghostHearsNoise) {
+          this.lastKnownPlayerPos.copy(playerPos);
+          this.stateTimer = Math.min(this.stateTimer, 1.5);
+          this.currentSpeed = this.chaseSpeed * speedMult;
         } else {
-          this.sightKillTimer = Math.max(0, this.sightKillTimer - delta * 2.0);
           this.currentSpeed = this.chaseSpeed * speedMult;
         }
 
-        // Move directly toward player / last known position
+        // Move directly toward player / last known tracked position
         this.moveToward(this.lastKnownPlayerPos, delta, colliders);
 
-        // TATYA SIGHT-KILL / PROXIMITY STRIKE:
-        if ((this.sightKillTimer >= sightKillThreshold && this.hasDirectVision) || (distToPlayer < 2.2 && !isPlayerHiding)) {
+        // CLOSE-RANGE KILL ONLY: Ghost never kills from far sight; must reach close unobstructed proximity
+        const postHorizDist = Math.hypot(this.position.x - playerPos.x, this.position.z - playerPos.z);
+        const postVertDiff = Math.abs((this.position.y + 1.1) - playerPos.y);
+        if (
+          postHorizDist < closeReachRange &&
+          postVertDiff < 1.85 &&
+          this.hasUnobstructedReach(playerPos, colliders, postHorizDist)
+        ) {
           this.sightKillTimer = 0;
           onCatchPlayer();
           return;
         }
 
-        // Lost sight for too long
-        if (!this.hasDirectVision && this.stateTimer > 5.0) {
+        // If lost sight and reached last seen spot (or timed out after 6.5s), transition to room search
+        const distToLastSeen = Math.hypot(
+          this.position.x - this.lastKnownPlayerPos.x,
+          this.position.z - this.lastKnownPlayerPos.z
+        );
+        if (!this.hasDirectVision && (this.stateTimer > 6.5 || (distToLastSeen < 1.0 && this.stateTimer > 1.5))) {
           this.state = 'search';
           this.stateTimer = 0;
           this.tmpSearchSpot.copy(this.lastKnownPlayerPos);
@@ -933,7 +949,34 @@ export class KalapurGhost {
     }
   }
 
-  // Vision cone and Raycast check (Fair & Realistic)
+  // Unobstructed physical reach check so villain cannot strike through solid walls
+  private hasUnobstructedReach(playerPos: THREE.Vector3, colliders: THREE.Box3[], horizDist: number): boolean {
+    if (horizDist < 0.45) return true;
+    this.tmpRayOrigin.set(this.position.x, this.position.y + 1.35, this.position.z);
+    this.tmpToPlayer.set(
+      playerPos.x - this.tmpRayOrigin.x,
+      playerPos.y - 0.25 - this.tmpRayOrigin.y,
+      playerPos.z - this.tmpRayOrigin.z
+    );
+    const rayLen = this.tmpToPlayer.length();
+    if (rayLen < 0.01) return true;
+    this.tmpToPlayer.divideScalar(rayLen);
+    this.tmpRay.set(this.tmpRayOrigin, this.tmpToPlayer);
+
+    for (const box of colliders) {
+      if (box.max.y < this.position.y + 0.1 || box.min.y > this.position.y + 2.2) continue;
+      const intersect = this.tmpRay.intersectBox(box, this.tmpRayHit);
+      if (intersect) {
+        const distToBox = this.tmpRayOrigin.distanceTo(intersect);
+        if (distToBox < rayLen - 0.15) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  // Vision cone and Eye-to-Eye Raycast check (Accurately spots & tracks player without wall-hacks)
   private checkLineOfSight(
     playerPos: THREE.Vector3,
     colliders: THREE.Box3[],
@@ -941,35 +984,52 @@ export class KalapurGhost {
     isFlashlightOn: boolean,
     isPlayerCrouching: boolean
   ): boolean {
-    // Distance limits: crouching gives stealth; flashlight gives away position
-    let maxVisionDist = 7.0;
+    // Reject cross-floor vision unless vertically near stairs
+    if (Math.abs(playerPos.y - 1.2 - this.position.y) > 2.6) return false;
+
+    // Distance limits: crouching gives stealth; flashlight increases visibility range
+    let maxVisionDist = 9.5;
     if (isFlashlightOn) {
-      maxVisionDist = 11.0;
+      maxVisionDist = 14.0;
     } else if (isPlayerCrouching) {
-      maxVisionDist = 3.5;
+      maxVisionDist = 4.8;
     }
 
     if (dist > maxVisionDist) return false;
 
-    // Check angle between ghost facing direction and player (zero-GC)
+    // Check horizontal angle between ghost facing direction and player (zero-GC)
     this.mesh.getWorldDirection(this.tmpGhostDir);
+    this.tmpGhostDir.y = 0;
+    if (this.tmpGhostDir.lengthSq() > 0.0001) this.tmpGhostDir.normalize();
 
-    this.tmpToPlayer.copy(playerPos).sub(this.position).normalize();
+    this.tmpToPlayer.set(playerPos.x - this.position.x, 0, playerPos.z - this.position.z);
+    const horizDist = this.tmpToPlayer.length();
+    if (horizDist > 0.001) {
+      this.tmpToPlayer.divideScalar(horizDist);
+    }
+
     const dot = this.tmpGhostDir.dot(this.tmpToPlayer);
 
-    // Realistic frontal sight cone (~70 degrees, cannot see behind its back!)
-    if (dot < 0.35) return false;
+    // Frontal sight cone (~150 deg), plus close proximity awareness (<2.6m) when not hidden behind a wall
+    if (horizDist > 2.6 && dot < 0.25) return false;
 
-    // Raycast through colliders to check for wall blockage (eye height works in 2.7m Crypt too)
-    this.tmpRayOrigin.set(this.position.x, this.position.y + 1.5, this.position.z);
+    // Eye-to-eye raycast through colliders so furniture/ceilings don't cause false blocks
+    this.tmpRayOrigin.set(this.position.x, this.position.y + 1.45, this.position.z);
+    this.tmpToPlayer.set(
+      playerPos.x - this.tmpRayOrigin.x,
+      playerPos.y - 0.15 - this.tmpRayOrigin.y,
+      playerPos.z - this.tmpRayOrigin.z
+    );
+    const eyeDist = this.tmpToPlayer.length();
+    if (eyeDist < 0.01) return true;
+    this.tmpToPlayer.divideScalar(eyeDist);
     this.tmpRay.set(this.tmpRayOrigin, this.tmpToPlayer);
 
     for (const box of colliders) {
       const intersect = this.tmpRay.intersectBox(box, this.tmpRayHit);
       if (intersect) {
-        const distToBox = this.position.distanceTo(intersect);
-        if (distToBox < dist - 0.5) {
-          // Blocked by wall or furniture obstacle
+        const distToBox = this.tmpRayOrigin.distanceTo(intersect);
+        if (distToBox < eyeDist - 0.35) {
           return false;
         }
       }
@@ -1051,9 +1111,32 @@ export class KalapurGhost {
       if (!collideX) this.position.x = nextX;
       if (!collideZ) this.position.z = nextZ;
 
-      // If fully wedged on both axes while patrolling, advance to next waypoint
-      if (collideX && collideZ && this.state === 'patrol') {
-        this.selectNextWaypoint();
+      // If blocked along primary chase/investigate corner, sidestep smoothly along perpendicular tangent
+      if (collideX && collideZ) {
+        if (this.state === 'patrol') {
+          this.selectNextWaypoint();
+        } else {
+          const stepMag = this.currentSpeed * delta * 0.85;
+          const sideX = -this.tmpMoveDir.z * this.chaseSteerSign * stepMag;
+          const sideZ = this.tmpMoveDir.x * this.chaseSteerSign * stepMag;
+          this.tmpBoxMin.set(this.position.x + sideX - villainRadius, this.position.y + 0.1, this.position.z + sideZ - villainRadius);
+          this.tmpBoxMax.set(this.position.x + sideX + villainRadius, this.position.y + 1.8, this.position.z + sideZ + villainRadius);
+          this.tmpBoxX.set(this.tmpBoxMin, this.tmpBoxMax);
+          let sideBlocked = false;
+          for (const box of colliders) {
+            if (box.max.y < this.position.y || box.min.y > this.position.y + 2.0) continue;
+            if (box.intersectsBox(this.tmpBoxX)) {
+              sideBlocked = true;
+              break;
+            }
+          }
+          if (!sideBlocked) {
+            this.position.x += sideX;
+            this.position.z += sideZ;
+          } else {
+            this.chaseSteerSign *= -1;
+          }
+        }
       }
     } else {
       this.position.x = nextX;
