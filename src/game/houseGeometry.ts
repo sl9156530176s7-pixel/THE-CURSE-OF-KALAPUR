@@ -1815,15 +1815,15 @@ export function buildKalapurHouse(): HouseData {
     const frontDirZ = Math.cos(rotY);
 
     if (itemConfig) {
-      itemConfig.mesh.position.set(0, -0.01, 0.1);
-      attachItemGlint(itemConfig.mesh, 0xfbbf24, 0.14);
+      itemConfig.mesh.position.set(0, -0.042, 0.14);
+      attachItemGlint(itemConfig.mesh, 0xfbbf24, 0.15);
       drawerGroup.add(itemConfig.mesh);
 
       interactives.push({
         id: itemConfig.id,
         type: itemConfig.type,
         name: itemConfig.name,
-        position: new THREE.Vector3(x + frontDirX * 0.1, y + 0.72, z + frontDirZ * 0.1),
+        position: new THREE.Vector3(x + frontDirX * 0.14, y + 0.7, z + frontDirZ * 0.14),
         mesh: itemConfig.mesh,
         prompt: `Pick up ${itemConfig.name} [E]`,
         drawerId: id,
@@ -1851,66 +1851,207 @@ export function buildKalapurHouse(): HouseData {
     });
   }
 
-  // Build 9 Distinct Procedural 3D Tools for the 3 Escapes!
-  const boltCuttersGroup = new THREE.Group();
-  const redMat = new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.45 });
-  for (const hx of [-0.07, 0.07]) {
-    const h = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.02, 0.4, 8), redMat);
-    h.rotation.set(Math.PI / 2, 0, hx < 0 ? -0.15 : 0.15);
-    h.position.set(hx, 0, 0.1);
-    boltCuttersGroup.add(h);
+  // Shared accent materials for crisp realistic keys & tools
+  const rubberRedMat = new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.55, metalness: 0.08 });
+  const rubberDarkMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.75, metalness: 0.1 });
+  const copperMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.25, metalness: 0.9 });
+  const crimsonGemMat = new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0x991b1b, emissiveIntensity: 0.5, roughness: 0.18, metalness: 0.3 });
+  const yellowLabelMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.45 });
+  const oakOarMat = new THREE.MeshStandardMaterial({ color: 0x7c4a26, roughness: 0.55, metalness: 0.08 });
+
+  // Helper to craft a real antique skeleton/padlock key (Ornate bow + collar + shaft + stepped teeth bit)
+  function buildRealSkeletonKey(mat: THREE.Material, bowRadius: number, shaftLen: number, addGem = false, teethCount = 3): THREE.Group {
+    const g = new THREE.Group();
+    const bow = new THREE.Mesh(new THREE.TorusGeometry(bowRadius, bowRadius * 0.24, 10, 22), mat);
+    bow.rotation.x = Math.PI / 2;
+    bow.position.set(0, 0.018, -shaftLen * 0.35);
+
+    const bowCrossH = new THREE.Mesh(new THREE.CylinderGeometry(bowRadius * 0.13, bowRadius * 0.13, bowRadius * 1.75, 8), mat);
+    bowCrossH.rotation.z = Math.PI / 2;
+    bowCrossH.position.copy(bow.position);
+
+    const bowCrossV = new THREE.Mesh(new THREE.CylinderGeometry(bowRadius * 0.13, bowRadius * 0.13, bowRadius * 1.75, 8), mat);
+    bowCrossV.rotation.x = Math.PI / 2;
+    bowCrossV.position.copy(bow.position);
+
+    const collar = new THREE.Mesh(new THREE.CylinderGeometry(bowRadius * 0.36, bowRadius * 0.3, 0.024, 12), mat);
+    collar.rotation.x = Math.PI / 2;
+    collar.position.set(0, 0.018, -shaftLen * 0.35 + bowRadius + 0.012);
+
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.01, shaftLen, 10), mat);
+    shaft.rotation.x = Math.PI / 2;
+    shaft.position.set(0, 0.018, collar.position.z + shaftLen * 0.5);
+
+    const tipPin = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.01, 0.018, 8), mat);
+    tipPin.rotation.x = Math.PI / 2;
+    tipPin.position.set(0, 0.018, shaft.position.z + shaftLen * 0.5 + 0.009);
+
+    g.add(bow, bowCrossH, bowCrossV, collar, shaft, tipPin);
+
+    if (addGem) {
+      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(bowRadius * 0.32, 0), crimsonGemMat);
+      gem.position.set(bow.position.x, 0.022, bow.position.z);
+      g.add(gem);
+    }
+
+    // Precision key bit spine + distinct notched key teeth
+    const bitStartZ = shaft.position.z + shaftLen * 0.5 - 0.018;
+    const spine = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.012, 0.068), mat);
+    spine.position.set(0.018, 0.018, bitStartZ - 0.032);
+    g.add(spine);
+
+    for (let t = 0; t < teethCount; t++) {
+      const toothLen = t % 2 === 0 ? 0.034 : 0.024;
+      const tooth = new THREE.Mesh(new THREE.BoxGeometry(toothLen, 0.011, 0.012), mat);
+      tooth.position.set(0.036 + toothLen * 0.45, 0.018, bitStartZ - 0.008 - t * 0.018);
+      g.add(tooth);
+    }
+    return g;
   }
-  boltCuttersGroup.add(new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.04, 0.15), ironMat));
 
-  const brassKeyGroup = new THREE.Group();
-  brassKeyGroup.add(new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.016, 8, 16), brassMat));
-  const bkStem = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.24), brassMat);
-  bkStem.rotation.x = Math.PI / 2;
-  bkStem.position.z = 0.12;
-  brassKeyGroup.add(bkStem);
+  // 1. Old Brass Key (Master Bedroom)
+  const brassKeyGroup = buildRealSkeletonKey(brassMat, 0.05, 0.19, false, 3);
 
-  const sanctumKeyGroup = new THREE.Group();
-  sanctumKeyGroup.add(new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.018, 8, 16), ironMat));
-  const skStem = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.26), ironMat);
-  skStem.rotation.x = Math.PI / 2;
-  skStem.position.z = 0.13;
-  sanctumKeyGroup.add(skStem);
+  // 2. Sanctum Key (Mystic Attic — Antique blackened iron with ruby gem & 4 teeth)
+  const sanctumKeyGroup = buildRealSkeletonKey(ironMat, 0.056, 0.21, true, 4);
 
-  const gateKeyGroup = new THREE.Group();
-  gateKeyGroup.add(new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.02, 8, 16), brassMat));
-  const gkStem = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.28), brassMat);
-  gkStem.rotation.x = Math.PI / 2;
-  gkStem.position.z = 0.14;
-  gateKeyGroup.add(gkStem);
+  // 3. Heavy Gate Key (Outer Courtyard Padlock — Thick gleaming brass with embossed key tag)
+  const gateKeyGroup = buildRealSkeletonKey(brassMat, 0.062, 0.22, false, 4);
+  const gateKeyRing = new THREE.Mesh(new THREE.TorusGeometry(0.02, 0.004, 6, 14), steelMat);
+  gateKeyRing.rotation.x = Math.PI / 2;
+  gateKeyRing.position.set(-0.072, 0.018, -0.077);
+  gateKeyGroup.add(gateKeyRing);
 
-  const crowbarGroup = new THREE.Group();
-  const cbShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.44, 6), ironMat);
-  cbShaft.rotation.x = Math.PI / 2;
-  crowbarGroup.add(cbShaft);
-
-  const tantricBellGroup = new THREE.Group();
-  const tbBody = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.085, 0.14, 14), brassMat);
-  tbBody.position.y = 0.07;
-  tantricBellGroup.add(tbBody);
-
-  // Car Escape Tools: Fuel Jerrycan, Car Battery, Ignition Key
-  const fuelCanGroup = new THREE.Group();
-  const canBody = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.3, 0.16), redMat);
-  canBody.position.y = 0.15;
-  fuelCanGroup.add(canBody);
-
-  const carBatteryGroup = new THREE.Group();
-  const cbBox = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.2, 0.18), new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.4 }));
-  cbBox.position.y = 0.1;
-  const term1 = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.05), redMat);
-  term1.position.set(-0.07, 0.21, 0);
-  carBatteryGroup.add(cbBox, term1);
-
+  // 4. Car Ignition Key (1954 Sedan — Bakelite black grip fob + brass emblem + grooved serrated steel blade)
   const carKeyGroup = new THREE.Group();
-  carKeyGroup.add(new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.015, 8, 14), steelMat));
-  const ckStem = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.012, 0.18), steelMat);
-  ckStem.position.z = 0.1;
-  carKeyGroup.add(ckStem);
+  const fobBody = new THREE.Mesh(new THREE.CylinderGeometry(0.044, 0.044, 0.018, 12), rubberDarkMat);
+  fobBody.position.set(0, 0.016, -0.08);
+  const fobBadge = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.021, 10), brassMat);
+  fobBadge.position.copy(fobBody.position);
+  const keyCollar = new THREE.Mesh(new THREE.BoxGeometry(0.026, 0.015, 0.022), steelMat);
+  keyCollar.position.set(0, 0.016, -0.032);
+  const ckBlade = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.008, 0.135), steelMat);
+  ckBlade.position.set(0, 0.016, 0.045);
+  carKeyGroup.add(fobBody, fobBadge, keyCollar, ckBlade);
+  // 5 realistic serrated ignition cuts along blade edge
+  for (let i = 0; i < 5; i++) {
+    const serration = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.007, 0.012), steelMat);
+    serration.position.set(0.01 + (i % 2) * 0.003, 0.016, -0.005 + i * 0.022);
+    carKeyGroup.add(serration);
+  }
+
+  // 5. Heavy Bolt Cutters (Dual dipped-red handles, compound steel pivot plates, hex bolts & sharp curved jaws)
+  const boltCuttersGroup = new THREE.Group();
+  for (const side of [-1, 1]) {
+    const handleRod = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.25, 8), steelMat);
+    handleRod.rotation.set(Math.PI / 2, 0, side * 0.16);
+    handleRod.position.set(side * 0.048, 0.022, -0.05);
+
+    const rubberGrip = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.016, 0.16, 10), rubberRedMat);
+    rubberGrip.rotation.copy(handleRod.rotation);
+    rubberGrip.position.set(side * 0.062, 0.022, -0.115);
+
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.012, 0.085), ironMat);
+    plate.rotation.y = -side * 0.22;
+    plate.position.set(side * 0.024, 0.022, 0.085);
+
+    const pivotBolt = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.022, 6), brassMat);
+    pivotBolt.position.set(side * 0.024, 0.024, 0.08);
+
+    const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.016, 0.072), steelMat);
+    jaw.rotation.y = side * 0.34;
+    jaw.position.set(side * 0.014, 0.022, 0.145);
+
+    boltCuttersGroup.add(handleRod, rubberGrip, plate, pivotBolt, jaw);
+  }
+  const jawBridge = new THREE.Mesh(new THREE.BoxGeometry(0.072, 0.014, 0.024), ironMat);
+  jawBridge.position.set(0, 0.022, 0.082);
+  boltCuttersGroup.add(jawBridge);
+
+  // 6. Heavy Steel Crowbar (Hexagonal red shaft + gooseneck curved claw hook + beveled chisel pry tip)
+  const crowbarGroup = new THREE.Group();
+  const cbShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.34, 6), rubberRedMat);
+  cbShaft.rotation.x = Math.PI / 2;
+  cbShaft.position.set(0, 0.02, 0);
+  // Flattened pry chisel tip (front)
+  const cbChisel = new THREE.Mesh(new THREE.BoxGeometry(0.026, 0.008, 0.055), steelMat);
+  cbChisel.rotation.x = 0.22;
+  cbChisel.position.set(0, 0.024, 0.185);
+  // Gooseneck curved claw (back) lying neatly sideways so height stays compact inside drawer
+  const cbBend1 = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.07, 6), steelMat);
+  cbBend1.rotation.set(Math.PI / 2, 0, -0.65);
+  cbBend1.position.set(-0.02, 0.02, -0.185);
+  const cbBend2 = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.01, 0.065, 6), steelMat);
+  cbBend2.rotation.set(Math.PI / 2, 0, -1.55);
+  cbBend2.position.set(-0.056, 0.02, -0.195);
+  const cbClawL = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.009, 0.032), steelMat);
+  cbClawL.rotation.y = -0.35;
+  cbClawL.position.set(-0.084, 0.02, -0.172);
+  const cbClawR = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.009, 0.032), steelMat);
+  cbClawR.rotation.y = -0.35;
+  cbClawR.position.set(-0.068, 0.02, -0.168);
+  crowbarGroup.add(cbShaft, cbChisel, cbBend1, cbBend2, cbClawL, cbClawR);
+
+  // 7. Sacred Tantric Bell (Ornate Indian Puja Ghanti — Flared skirt, clapper ball, stepped rings & Trishul/Lotus handle)
+  const tantricBellGroup = new THREE.Group();
+  const bellWrapper = new THREE.Group();
+  bellWrapper.rotation.x = Math.PI / 2.1; // Laid cleanly inside drawer so its full silhouette is clear & fits easily!
+  bellWrapper.position.set(0, 0.058, 0.01);
+  const tbSkirt = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.068, 0.06, 18), brassMat);
+  tbSkirt.position.y = -0.025;
+  const tbLip = new THREE.Mesh(new THREE.TorusGeometry(0.068, 0.008, 8, 20), brassMat);
+  tbLip.rotation.x = Math.PI / 2;
+  tbLip.position.y = -0.055;
+  const tbCrown = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.034, 0.035, 16), brassMat);
+  tbCrown.position.y = 0.02;
+  const tbClapper = new THREE.Mesh(new THREE.SphereGeometry(0.014, 10, 10), copperMat);
+  tbClapper.position.y = -0.056;
+  const tbHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.014, 0.085, 12), brassMat);
+  tbHandle.position.y = 0.075;
+  const tbRing = new THREE.Mesh(new THREE.TorusGeometry(0.016, 0.005, 8, 14), brassMat);
+  tbRing.position.y = 0.125;
+  bellWrapper.add(tbSkirt, tbLip, tbCrown, tbClapper, tbHandle, tbRing);
+  tantricBellGroup.add(bellWrapper);
+
+  // 8. Fuel Jerrycan (Compact realistic Jerrycan laid on side so zero tabletop clipping — molded handle, ribs & cap)
+  const fuelCanGroup = new THREE.Group();
+  const canBody = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.095, 0.25), rubberRedMat);
+  canBody.position.set(0, 0.05, 0);
+  const canStripe = new THREE.Mesh(new THREE.BoxGeometry(0.224, 0.025, 0.09), yellowLabelMat);
+  canStripe.position.set(0, 0.052, 0.01);
+  const canHandleBar = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.11, 8), rubberRedMat);
+  canHandleBar.rotation.z = Math.PI / 2;
+  canHandleBar.position.set(-0.02, 0.055, -0.14);
+  const canSpout = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.02, 0.05, 10), brassMat);
+  canSpout.rotation.x = Math.PI / 2.2;
+  canSpout.position.set(0.068, 0.062, -0.145);
+  const canCap = new THREE.Mesh(new THREE.CylinderGeometry(0.021, 0.021, 0.014, 12), yellowLabelMat);
+  canCap.rotation.x = Math.PI / 2;
+  canCap.position.set(0.068, 0.065, -0.172);
+  fuelCanGroup.add(canBody, canStripe, canHandleBar, canSpout, canCap);
+
+  // 9. Car Battery (12V Automotive Battery sized cleanly for drawer + dual + / - posts, carry strap & cell caps)
+  const carBatteryGroup = new THREE.Group();
+  const cbCase = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.088, 0.16), rubberDarkMat);
+  cbCase.position.set(0, 0.045, 0);
+  const cbLid = new THREE.Mesh(new THREE.BoxGeometry(0.244, 0.014, 0.164), new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.45 }));
+  cbLid.position.set(0, 0.092, 0);
+  const cbLabel = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.004, 0.06), yellowLabelMat);
+  cbLabel.position.set(0, 0.1, 0.03);
+  const posCollar = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.018, 0.008, 12), rubberRedMat);
+  posCollar.position.set(-0.078, 0.102, -0.042);
+  const posPost = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.011, 0.018, 10), steelMat);
+  posPost.position.set(-0.078, 0.11, -0.042);
+  const negCollar = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.018, 0.008, 12), steelMat);
+  negCollar.position.set(0.078, 0.102, -0.042);
+  const negPost = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.011, 0.018, 10), steelMat);
+  negPost.position.set(0.078, 0.11, -0.042);
+  carBatteryGroup.add(cbCase, cbLid, cbLabel, posCollar, posPost, negCollar, negPost);
+  for (let c = -2; c <= 2; c++) {
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.008, 8), rubberRedMat);
+    cap.position.set(c * 0.036, 0.102, -0.01);
+    carBatteryGroup.add(cap);
+  }
 
   const guaranteedToolPool: Array<{ id: string; type: InteractiveType; name: string; mesh: THREE.Group }> = [
     { id: 'key-brass', type: 'key', name: 'Old Brass Key', mesh: brassKeyGroup },
@@ -1940,10 +2081,24 @@ export function buildKalapurHouse(): HouseData {
   createTableWithDrawer('library', 'Library Study Desk', -13, 4.5, -4, 0, guaranteedToolPool[7]);
   createTableWithDrawer('guest', 'Guest Nightstand', -12, 4.5, 4, Math.PI / 2, guaranteedToolPool[8]);
 
-  // Inside Master Bedroom (locked by Brass Key): Wooden Boat Oars + Spare Battery!
-  const masterBattGroup = new THREE.Group();
-  const masterBatt = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.14), brassMat);
-  masterBattGroup.add(masterBatt);
+  // Helper to build a realistic D-cell flashlight battery (Black casing + copper top + positive terminal nub)
+  function buildRealFlashlightBattery(scale = 1.0): THREE.Group {
+    const g = new THREE.Group();
+    const negCap = new THREE.Mesh(new THREE.CylinderGeometry(0.032 * scale, 0.032 * scale, 0.01 * scale, 14), steelMat);
+    negCap.position.y = 0.005 * scale;
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.032 * scale, 0.032 * scale, 0.075 * scale, 14), rubberDarkMat);
+    body.position.y = 0.047 * scale;
+    const copperTop = new THREE.Mesh(new THREE.CylinderGeometry(0.0325 * scale, 0.0325 * scale, 0.035 * scale, 14), copperMat);
+    copperTop.position.y = 0.102 * scale;
+    const nub = new THREE.Mesh(new THREE.CylinderGeometry(0.012 * scale, 0.014 * scale, 0.012 * scale, 10), steelMat);
+    nub.position.y = 0.125 * scale;
+    g.add(negCap, body, copperTop, nub);
+    return g;
+  }
+
+  // Inside Master Bedroom (locked by Brass Key): Spare Flashlight Battery!
+  const masterBattGroup = buildRealFlashlightBattery(0.82);
+  masterBattGroup.rotation.x = Math.PI / 2; // Lies neatly flat inside vanity drawer!
   createTableWithDrawer('master', 'Master Vanity', 12, 4.5, 1.5, 0, {
     id: 'batt-master',
     type: 'battery',
@@ -1951,16 +2106,25 @@ export function buildKalapurHouse(): HouseData {
     mesh: masterBattGroup,
   });
 
-  // Wooden Boat Oars in Secret Library Archive (X = -14.2, Y = 5.1, Z = -12.0) — always reachable & rewarding!
+  // Wooden Boat Oars in Secret Library Archive (X = -14.2, Y = 5.1, Z = -12.0) — carved handles, shafts, neck collars & contoured blades!
   const oarsGroup = new THREE.Group();
   oarsGroup.position.set(-14.2, 5.1, -12.0);
   for (const ox of [-0.15, 0.15]) {
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.35, 8), darkTeakMat);
-    shaft.rotation.z = ox * 0.6;
-    const paddle = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.42, 0.03), brassMat);
-    paddle.position.y = -0.68;
-    shaft.add(paddle);
-    oarsGroup.add(shaft);
+    const oar = new THREE.Group();
+    const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.024, 0.2, 10), rubberDarkMat);
+    grip.position.y = 0.62;
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.022, 0.9, 10), oakOarMat);
+    shaft.position.y = 0.12;
+    const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.045, 10), brassMat);
+    collar.position.y = 0.36;
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.44, 0.022), oakOarMat);
+    blade.position.y = -0.52;
+    const bladeTip = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.022, 12), oakOarMat);
+    bladeTip.rotation.x = Math.PI / 2;
+    bladeTip.position.y = -0.74;
+    oar.add(grip, shaft, collar, blade, bladeTip);
+    oar.rotation.z = ox * 0.6;
+    oarsGroup.add(oar);
   }
   attachItemGlint(oarsGroup, 0x38bdf8, 0.3);
   root.add(oarsGroup);
@@ -1986,9 +2150,8 @@ export function buildKalapurHouse(): HouseData {
     ['batt-attic', 5.0, 9.65, 4.2],
   ];
   for (const [bid, bx, by, bz] of extraBatteries) {
-    const bg = new THREE.Group();
-    bg.position.set(bx, by, bz);
-    bg.add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.16), brassMat));
+    const bg = buildRealFlashlightBattery(1.15);
+    bg.position.set(bx, by - 0.04, bz);
     attachItemGlint(bg, 0xfacc15, 0.16);
     root.add(bg);
     interactives.push({
@@ -2013,11 +2176,18 @@ export function buildKalapurHouse(): HouseData {
   ];
   for (const [did, dx, dy, dz] of decoyPickups) {
     const dg = new THREE.Group();
-    dg.position.set(dx, dy, dz);
-    const lota = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 10), brassMat);
-    const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.05, 0.06, 10), brassMat);
-    rim.position.y = 0.11;
-    dg.add(lota, rim);
+    dg.position.set(dx, dy - 0.02, dz);
+    const lotaBase = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.05, 0.025, 14), brassMat);
+    lotaBase.position.y = 0.012;
+    const lotaBelly = new THREE.Mesh(new THREE.SphereGeometry(0.1, 14, 12), brassMat);
+    lotaBelly.scale.set(1, 0.85, 1);
+    lotaBelly.position.y = 0.085;
+    const lotaNeck = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.062, 0.045, 14), brassMat);
+    lotaNeck.position.y = 0.165;
+    const lotaRim = new THREE.Mesh(new THREE.TorusGeometry(0.062, 0.011, 8, 16), brassMat);
+    lotaRim.rotation.x = Math.PI / 2;
+    lotaRim.position.y = 0.188;
+    dg.add(lotaBase, lotaBelly, lotaNeck, lotaRim);
     attachItemGlint(dg, 0xf97316, 0.18);
     root.add(dg);
     interactives.push({

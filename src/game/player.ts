@@ -269,9 +269,10 @@ export class PlayerController {
 
     this.onMouseMoveHandler = (e: MouseEvent) => {
       if (!this.isLocked && gameState.isHiding === null) return;
-      const sens = 0.0018 * (gameState.settings.mouseSensitivity || 0.85);
-      const dx = Math.max(-55, Math.min(55, e.movementX));
-      const dy = Math.max(-55, Math.min(55, e.movementY));
+      const userSens = gameState.settings.mouseSensitivity || 0.85;
+      const sens = 0.0021 * userSens;
+      const dx = Math.max(-160, Math.min(160, e.movementX));
+      const dy = Math.max(-160, Math.min(160, e.movementY));
 
       this.targetYaw -= dx * sens;
       this.targetPitch -= dy * sens;
@@ -336,31 +337,31 @@ export class PlayerController {
       if (gameState.ghostDistance < 7.0 || gameState.ghostState === 'chase') {
         const proximityRatio = Math.max(0, 1 - gameState.ghostDistance / 7.0);
         if (Math.random() < 0.28 + proximityRatio * 0.45) {
-          this.flashlight.intensity = Math.random() < 0.3 ? 0.05 : (1.0 + Math.random() * 2.5);
-          this.flashlightBulb.intensity = Math.random() < 0.3 ? 0.05 : 0.35;
+          this.flashlight.intensity = Math.random() < 0.3 ? 0.08 : (1.2 + Math.random() * 2.6);
+          this.flashlightBulb.intensity = Math.random() < 0.3 ? 0.08 : 0.4;
         } else {
-          this.flashlight.intensity = 4.2;
-          this.flashlightBulb.intensity = 0.85;
+          this.flashlight.intensity = 4.6;
+          this.flashlightBulb.intensity = 0.95;
         }
       } else if (gameState.flashlightBattery < 15) {
-        this.flashlight.intensity = Math.random() > 0.3 ? 3.5 : 0.6;
-        this.flashlightBulb.intensity = Math.random() > 0.3 ? 0.85 : 0.2;
+        this.flashlight.intensity = Math.random() > 0.3 ? 3.8 : 0.7;
+        this.flashlightBulb.intensity = Math.random() > 0.3 ? 0.9 : 0.25;
       } else {
-        this.flashlight.intensity = 4.0;
-        this.flashlightBulb.intensity = 0.85;
+        this.flashlight.intensity = 4.5;
+        this.flashlightBulb.intensity = 0.95;
       }
     }
 
     // 2. Held Photo Frame Visibility
     this.heldFrameMesh.visible = gameState.hasPhotoFrame && !gameState.framePlacedOnDoor && gameState.isHiding === null;
 
-    // 2B. Apply Touch Look (Direct 1:1 Granny Ch 3 Camera Stability — zero rubber-band lag or drift)
+    // 2B. Apply Touch / Drag Look with full unclamped float continuity
     const rawLookX = this.touchLook.x + gameState.touchLook.x;
     const rawLookY = this.touchLook.y + gameState.touchLook.y;
-    if (Math.abs(rawLookX) > 0.3 || Math.abs(rawLookY) > 0.3) {
-      const lookX = Math.max(-48, Math.min(48, rawLookX));
-      const lookY = Math.max(-48, Math.min(48, rawLookY));
-      const touchSens = 0.0024 * (gameState.settings.mouseSensitivity || 0.85);
+    if (rawLookX !== 0 || rawLookY !== 0) {
+      const lookX = Math.max(-180, Math.min(180, rawLookX));
+      const lookY = Math.max(-180, Math.min(180, rawLookY));
+      const touchSens = 0.0032 * (gameState.settings.mouseSensitivity || 0.85);
       this.targetYaw -= lookX * touchSens;
       this.targetPitch -= lookY * touchSens;
       this.targetPitch = Math.max(-Math.PI / 2.35, Math.min(Math.PI / 2.35, this.targetPitch));
@@ -374,9 +375,11 @@ export class PlayerController {
     gameState.touchLook.x = 0;
     gameState.touchLook.y = 0;
 
-    // 1:1 Direct crisp camera orientation (no sluggish elastic lag)
-    this.yaw = this.targetYaw;
-    this.pitch = this.targetPitch;
+    // Silky velvet camera glide (smooth sub-frame interpolation for zero stutter when looking left/right/up/down)
+    this.yaw = THREE.MathUtils.damp(this.yaw, this.targetYaw, 16.5, delta);
+    this.pitch = THREE.MathUtils.damp(this.pitch, this.targetPitch, 16.5, delta);
+    if (Math.abs(this.targetYaw - this.yaw) < 0.00005) this.yaw = this.targetYaw;
+    if (Math.abs(this.targetPitch - this.pitch) < 0.00005) this.pitch = this.targetPitch;
 
     // 3. If player is hiding in wardrobe or under bed
     if (gameState.isHiding !== null) {
@@ -607,19 +610,27 @@ export class PlayerController {
     this.raycaster.setFromCamera(this.tmpScreenCenter, this.camera);
     this.camera.getWorldDirection(this.tmpLookDir);
     let closest: InteractiveObject | null = null;
-    let closestDist = 3.0; // interaction reach (meters)
+    let closestScore = 3.0; // interaction reach (meters)
 
     for (const item of interactives) {
       if (item.collected) continue;
+      // Never allow grabbing a key/tool through a closed drawer
+      if (item.type !== 'drawer' && item.drawerId && !gameState.drawersOpen[item.drawerId]) {
+        continue;
+      }
       if (item.drawerId) {
         item.mesh.getWorldPosition(item.position);
       }
       const dist = this.camera.position.distanceTo(item.position);
-      if (dist < closestDist) {
+      if (dist < 3.0) {
         this.tmpToObj.copy(item.position).sub(this.camera.position).normalize();
         if (this.tmpLookDir.dot(this.tmpToObj) > 0.66) {
-          closestDist = dist;
-          closest = item;
+          // Prioritize items resting inside an open drawer over closing the drawer itself
+          const effectiveScore = item.type === 'drawer' && item.isOpen ? dist + 0.55 : dist;
+          if (effectiveScore < closestScore) {
+            closestScore = effectiveScore;
+            closest = item;
+          }
         }
       }
     }

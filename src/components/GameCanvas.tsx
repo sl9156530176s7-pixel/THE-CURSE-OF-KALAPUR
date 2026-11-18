@@ -69,6 +69,17 @@ function syncHouseWithGameState(houseData: HouseData) {
     } else if (item.type === 'oars' && gameState.hasBoatOars) {
       item.collected = true;
       item.mesh.visible = false;
+    } else if (item.type === 'drawer' && item.drawerId && gameState.drawersOpen[item.drawerId]) {
+      item.isOpen = true;
+      if (item.drawerMesh) {
+        if (item.drawerMesh.userData.baseZ === undefined) {
+          item.drawerMesh.userData.baseZ = item.drawerMesh.position.z;
+        }
+        const openZ = (item.drawerMesh.userData.baseZ as number) + 0.42;
+        item.drawerMesh.position.z = openZ;
+        item.drawerMesh.userData.targetPosZ = openZ;
+      }
+      item.prompt = `Press E to close ${item.name}`;
     } else if (item.type === 'secret_bookcase' && gameState.secretPassageOpen) {
       item.isOpen = true;
       item.mesh.rotation.y = Math.PI / 2;
@@ -199,8 +210,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x060810);
-    scene.fog = new THREE.FogExp2(0x060810, 0.022);
+    scene.fog = new THREE.FogExp2(0x060810, 0.0175);
     sceneRef.current = scene;
+
+    // Gentle ambient hemisphere clarity light (keeps rooms & tools crystal-clear while preserving dark horror mood)
+    const hemiFill = new THREE.HemisphereLight(0x9fb4d8, 0x261a14, 0.3);
+    scene.add(hemiFill);
 
     const initW = Math.max(1, container.clientWidth);
     const initH = Math.max(1, container.clientHeight);
@@ -212,15 +227,15 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     });
     renderer.setSize(initW, initH);
     const quality = gameState.settings.graphicsQuality || 'high';
-    const dprCap = quality === 'low' ? 1.0 : quality === 'medium' ? 1.15 : isMobile ? 1.25 : 1.5;
+    const dprCap = quality === 'low' ? 0.85 : quality === 'medium' ? 1.1 : isMobile ? 1.25 : 1.5;
     renderer.setPixelRatio(
       isSoftwareGl ? 1 : Math.min(window.devicePixelRatio || 1, dprCap)
     );
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.22;
+    renderer.toneMappingExposure = 1.28;
     renderer.shadowMap.enabled = !isSoftwareGl && quality !== 'low';
-    renderer.shadowMap.type = isMobile ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
 
     const handleContextLost = (e: Event) => {
       e.preventDefault();
@@ -372,15 +387,44 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     let lastBreakerVisual: boolean | null = null;
     let lastCarBattVisual: boolean | null = null;
-    let lastAppliedQuality = gameState.settings.graphicsQuality;
+    let lastAppliedQuality: 'low' | 'medium' | 'high' | null = null;
+    const applyQualitySettings = (q: 'low' | 'medium' | 'high') => {
+      lastAppliedQuality = q;
+      const cap = q === 'low' ? 0.85 : q === 'medium' ? 1.1 : isMobile ? 1.25 : 1.5;
+      renderer.setPixelRatio(isSoftwareGl ? 1 : Math.min(window.devicePixelRatio || 1, cap));
+      const shadowsOn = !isSoftwareGl && q !== 'low';
+      renderer.shadowMap.enabled = shadowsOn;
+      player.flashlight.castShadow = shadowsOn;
+      (houseDataRef.current || houseData).root.traverse((obj) => {
+        if (obj instanceof THREE.DirectionalLight) {
+          obj.castShadow = shadowsOn && q === 'high' && !isMobile;
+        }
+      });
+      dustParticles.visible = q !== 'low';
+      rainGeo.setDrawRange(0, q === 'low' ? Math.floor(rainCount * 0.45) : rainCount);
+      hemiFill.intensity = q === 'low' ? 0.56 : q === 'medium' ? 0.36 : 0.3;
+      (scene.fog as THREE.FogExp2).density = q === 'low' ? 0.0155 : 0.0175;
+      renderer.toneMappingExposure = q === 'low' ? 1.32 : 1.28;
+    };
+    applyQualitySettings(quality);
 
     // Menu & Ending Cinematic Camera
     const menuCam = new THREE.PerspectiveCamera(65, initW / initH, 0.1, 80);
     let menuCamAngle = 0;
 
-    // Pre-compile shaders on hardware GPUs to eliminate first-frame turn hitch
+    // Pre-compile shaders across all directions on hardware GPUs to eliminate turning stutter
     if (!isSoftwareGl) {
+      const culledMeshes: THREE.Object3D[] = [];
+      scene.traverse((obj) => {
+        if (obj.frustumCulled) {
+          obj.frustumCulled = false;
+          culledMeshes.push(obj);
+        }
+      });
       renderer.compile(scene, camera);
+      for (const obj of culledMeshes) {
+        obj.frustumCulled = true;
+      }
     }
 
     let lastTime = performance.now();
@@ -392,7 +436,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       const sync = gl.fenceSync?.(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
       gl.flush();
       if (!sync) {
-        frameId = window.setTimeout(cb, 80);
+        frameId = window.setTimeout(cb, 16);
         return;
       }
       const poll = () => {
@@ -402,29 +446,45 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         }
         const state = gl.getSyncParameter(sync, gl.SYNC_STATUS);
         if (state === gl.UNSIGNALED) {
-          frameId = window.setTimeout(poll, 5);
+          frameId = window.setTimeout(poll, 4);
         } else {
           gl.deleteSync(sync);
-          frameId = window.setTimeout(cb, 80);
+          frameId = window.setTimeout(cb, 16);
         }
       };
-      frameId = window.setTimeout(poll, 5);
+      frameId = window.setTimeout(poll, 4);
     };
 
     const tick = () => {
       if (isDisposed) return;
 
+      const q = gameState.settings.graphicsQuality || 'high';
+      if (q !== lastAppliedQuality) {
+        applyQualitySettings(q);
+      }
+
       const now = performance.now();
+      // Smooth 50 FPS frame pacing on Low setting; full unthrottled 60+ FPS on Medium & High
+      if (q === 'low' && now - lastTime < 18.5) {
+        if (isSoftwareGl) {
+          frameId = window.setTimeout(tick, 4);
+        } else {
+          frameId = requestAnimationFrame(tick);
+        }
+        return;
+      }
+
       const delta = Math.min((now - lastTime) / 1000, 0.05);
       lastTime = now;
 
       const activeHouse = houseDataRef.current || houseData;
       const currentMode = modeRef.current;
 
-      // 1. Rain Animation
+      // 1. Rain Animation (reduced work on Low preset)
+      const activeRainCount = q === 'low' ? Math.floor(rainCount * 0.45) : rainCount;
       const posAttr = rainGeo.attributes.position as THREE.BufferAttribute;
       const positions = posAttr.array as Float32Array;
-      for (let i = 1; i < rainCount * 3; i += 3) {
+      for (let i = 1; i < activeRainCount * 3; i += 3) {
         positions[i] -= delta * 22;
         if (positions[i] < 0) {
           positions[i] = 24 + Math.random() * 2;
@@ -432,22 +492,24 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       }
       posAttr.needsUpdate = true;
 
-      // 1B. Floating Dust Motes Motion
-      const dPosAttr = dustGeo.attributes.position as THREE.BufferAttribute;
-      const dPos = dPosAttr.array as Float32Array;
-      const refPx = player.position.x;
-      const refPz = player.position.z;
-      for (let i = 0; i < dustCount; i++) {
-        const idx = i * 3;
-        dPos[idx + 1] -= delta * 0.12;
-        dPos[idx] += Math.sin(now * 0.001 + i) * delta * 0.08;
-        if (dPos[idx + 1] < 0.1) {
-          dPos[idx + 1] = 7.5;
-          dPos[idx] = refPx + (Math.random() - 0.5) * 16;
-          dPos[idx + 2] = refPz + (Math.random() - 0.5) * 16;
+      // 1B. Floating Dust Motes Motion (skipped when Low 50 FPS preset hides dust)
+      if (dustParticles.visible) {
+        const dPosAttr = dustGeo.attributes.position as THREE.BufferAttribute;
+        const dPos = dPosAttr.array as Float32Array;
+        const refPx = player.position.x;
+        const refPz = player.position.z;
+        for (let i = 0; i < dustCount; i++) {
+          const idx = i * 3;
+          dPos[idx + 1] -= delta * 0.12;
+          dPos[idx] += Math.sin(now * 0.001 + i) * delta * 0.08;
+          if (dPos[idx + 1] < 0.1) {
+            dPos[idx + 1] = 7.5;
+            dPos[idx] = refPx + (Math.random() - 0.5) * 16;
+            dPos[idx + 2] = refPz + (Math.random() - 0.5) * 16;
+          }
         }
+        dPosAttr.needsUpdate = true;
       }
-      dPosAttr.needsUpdate = true;
 
       // 1C. Clock Pendulum, Mandala Seal, Item Glints & Water Shimmer
       if (activeHouse.pendulums) {
@@ -501,16 +563,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         stunFlashLight.intensity = 0;
       }
 
-      // Live graphics quality toggle sync
-      if (gameState.settings.graphicsQuality !== lastAppliedQuality) {
-        lastAppliedQuality = gameState.settings.graphicsQuality;
-        const q = lastAppliedQuality;
-        const cap = q === 'low' ? 1.0 : q === 'medium' ? 1.15 : isMobile ? 1.25 : 1.5;
-        renderer.setPixelRatio(isSoftwareGl ? 1 : Math.min(window.devicePixelRatio || 1, cap));
-        renderer.shadowMap.enabled = !isSoftwareGl && q !== 'low';
-      }
-
-      // 3. Flickering Diya Lamps & Main Breaker Blackout Control
+      // 3. Flickering Diya Lamps, Main Breaker Control & Smart Distance Light Culling (massive 60/50 FPS boost!)
       const powerOn = gameState.breakerPowerOn;
       if (lastBreakerVisual !== powerOn) {
         lastBreakerVisual = powerOn;
@@ -519,13 +572,30 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           ledMat.color.setHex(powerOn ? 0x22c55e : 0xef4444);
         }
       }
+      const refCamPos = currentMode === 'playing' ? player.position : menuCam.position;
+      const maxLightDistSq = q === 'low' ? 196 : q === 'medium' ? 324 : 529; // 14m / 18m / 23m
+      const maxLightsActive = q === 'low' ? 5 : q === 'medium' ? 8 : 12;
+      let activeLightCount = 0;
       for (const light of activeHouse.flickerLights) {
-        if (light.userData.switchedOff) continue;
+        if (light.userData.switchedOff) {
+          light.visible = false;
+          continue;
+        }
+        const ldx = light.position.x - refCamPos.x;
+        const ldy = light.position.y - refCamPos.y;
+        const ldz = light.position.z - refCamPos.z;
+        const distSq = ldx * ldx + ldy * ldy + ldz * ldz;
+        if (distSq > maxLightDistSq || activeLightCount >= maxLightsActive) {
+          light.visible = false;
+          continue;
+        }
+        light.visible = true;
+        activeLightCount++;
         if (!powerOn) {
-          light.intensity = 0.06;
+          light.intensity = 0.08;
         } else {
           light.intensity =
-            0.9 + Math.sin(now * 0.008 + light.position.x) * 0.22 + (Math.random() - 0.5) * 0.12;
+            0.95 + Math.sin(now * 0.008 + light.position.x) * 0.2 + (Math.random() - 0.5) * 0.1;
         }
       }
 

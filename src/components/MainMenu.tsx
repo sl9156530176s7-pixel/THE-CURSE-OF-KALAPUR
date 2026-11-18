@@ -319,38 +319,42 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onPlay, onContinue, onReplay
                   />
                 </div>
 
-                {/* Mouse Sensitivity */}
+                {/* Look Sensitivity (Smooth Touch & Mouse) */}
                 <div>
                   <div className="flex justify-between mb-1.5 font-medium">
-                    <span>Mouse Sensitivity</span>
-                    <span className="font-mono text-red-400">{settings.mouseSensitivity.toFixed(1)}x</span>
+                    <span>Look Sensitivity (Smooth Touch &amp; Mouse)</span>
+                    <span className="font-mono text-red-400">{settings.mouseSensitivity.toFixed(2)}x</span>
                   </div>
                   <input
                     type="range"
-                    min="0.2"
-                    max="2.5"
-                    step="0.1"
+                    min="0.15"
+                    max="2.2"
+                    step="0.05"
                     value={settings.mouseSensitivity}
                     onChange={(e) => handleSettingChange('mouseSensitivity', parseFloat(e.target.value))}
                     className="w-full accent-red-600 bg-stone-800 h-1.5 rounded cursor-pointer"
                   />
                 </div>
 
-                {/* Graphics Quality */}
-                <div className="flex justify-between items-center pt-2">
-                  <span>Graphics Quality</span>
-                  <div className="flex gap-2">
-                    {(['low', 'medium', 'high'] as const).map((q) => (
+                {/* Graphics Quality & FPS Target */}
+                <div className="flex justify-between items-center pt-2 gap-2">
+                  <span>Graphics &amp; FPS</span>
+                  <div className="flex gap-1.5">
+                    {([
+                      { id: 'low', label: 'LOW 50 FPS' },
+                      { id: 'medium', label: 'MEDIUM' },
+                      { id: 'high', label: 'HIGH 60 FPS' },
+                    ] as const).map((q) => (
                       <button
-                        key={q}
-                        onClick={() => handleSettingChange('graphicsQuality', q)}
-                        className={`px-3 py-1 text-xs uppercase tracking-wider rounded border cursor-pointer ${
-                          settings.graphicsQuality === q
+                        key={q.id}
+                        onClick={() => handleSettingChange('graphicsQuality', q.id)}
+                        className={`px-2.5 py-1 text-[11px] uppercase tracking-wider rounded border cursor-pointer font-semibold ${
+                          settings.graphicsQuality === q.id
                             ? 'bg-red-950 border-red-500 text-red-200'
                             : 'bg-stone-900 border-stone-800 text-stone-400 hover:border-stone-700'
                         }`}
                       >
-                        {q}
+                        {q.label}
                       </button>
                     ))}
                   </div>

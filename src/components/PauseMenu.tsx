@@ -133,18 +133,45 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({ onResume, onSave, onMainMe
               </div>
               <div>
                 <div className="flex justify-between mb-1">
-                  <span>Look Sensitivity (Touch &amp; Mouse)</span>
+                  <span>Look Sensitivity (Smooth Touch &amp; Mouse)</span>
                   <span className="font-mono text-red-400">{settings.mouseSensitivity.toFixed(2)}x</span>
                 </div>
                 <input
                   type="range"
-                  min="0.2"
-                  max="2.0"
+                  min="0.15"
+                  max="2.2"
                   step="0.05"
                   value={settings.mouseSensitivity}
                   onChange={(e) => handleSettingChange('mouseSensitivity', parseFloat(e.target.value))}
                   className="w-full accent-red-600 bg-stone-800 h-1.5 rounded cursor-pointer"
                 />
+              </div>
+
+              {/* Graphics & FPS Setting */}
+              <div className="flex justify-between items-center pt-2 border-t border-stone-800 gap-2">
+                <div className="flex flex-col text-left">
+                  <span className="font-semibold text-stone-200">Graphics &amp; FPS</span>
+                  <span className="text-[10px] text-stone-500">50 FPS Low • 60 FPS High</span>
+                </div>
+                <div className="flex gap-1.5 shrink-0">
+                  {([
+                    { id: 'low', label: 'Low 50fps' },
+                    { id: 'medium', label: 'Med' },
+                    { id: 'high', label: 'High 60fps' },
+                  ] as const).map((q) => (
+                    <button
+                      key={q.id}
+                      onClick={() => handleSettingChange('graphicsQuality', q.id)}
+                      className={`px-2 py-1 rounded border cursor-pointer font-bold text-[10px] uppercase ${
+                        settings.graphicsQuality === q.id
+                          ? 'bg-red-900 border-red-500 text-white'
+                          : 'bg-stone-900 border-stone-800 text-stone-400'
+                      }`}
+                    >
+                      {q.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Screen Stability Mode (Granny Steady vs Walk Bob) */}

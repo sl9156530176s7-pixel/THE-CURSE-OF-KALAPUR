@@ -181,6 +181,7 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
 
   // Fullscreen Touch Look handlers
   const handleLookStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault();
     if (lookTouchId.current !== null) return;
     const touch = e.changedTouches[0];
     lookTouchId.current = touch.identifier;
@@ -258,6 +259,10 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
     };
 
     const handleWindowTouchMove = (e: TouchEvent) => {
+      if (joystickTouchId.current !== null || lookTouchId.current !== null) {
+        e.preventDefault();
+      }
+
       // Joystick movement
       if (joystickTouchId.current !== null) {
         for (let i = 0; i < e.changedTouches.length; i++) {
@@ -268,7 +273,7 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
         }
       }
 
-      // Look drag (ignore sub-0.4px finger micro-tremor and clamp wild touch jump spikes)
+      // Look drag (preserve full continuous deltas without choppy clipping)
       if (lookTouchId.current !== null) {
         for (let i = 0; i < e.changedTouches.length; i++) {
           if (e.changedTouches[i].identifier === lookTouchId.current) {
@@ -276,8 +281,8 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
             const rawDx = touch.clientX - lastLookPos.current.x;
             const rawDy = touch.clientY - lastLookPos.current.y;
             lastLookPos.current = { x: touch.clientX, y: touch.clientY };
-            const dx = Math.abs(rawDx) < 0.4 ? 0 : Math.max(-45, Math.min(45, rawDx));
-            const dy = Math.abs(rawDy) < 0.4 ? 0 : Math.max(-45, Math.min(45, rawDy));
+            const dx = Math.max(-160, Math.min(160, rawDx));
+            const dy = Math.max(-160, Math.min(160, rawDy));
             gameState.touchLook.x += dx;
             gameState.touchLook.y += dy;
             break;
@@ -314,8 +319,8 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
         const rawDx = e.clientX - lastLookPos.current.x;
         const rawDy = e.clientY - lastLookPos.current.y;
         lastLookPos.current = { x: e.clientX, y: e.clientY };
-        const dx = Math.abs(rawDx) < 0.35 ? 0 : Math.max(-45, Math.min(45, rawDx));
-        const dy = Math.abs(rawDy) < 0.35 ? 0 : Math.max(-45, Math.min(45, rawDy));
+        const dx = Math.max(-160, Math.min(160, rawDx));
+        const dy = Math.max(-160, Math.min(160, rawDy));
         gameState.touchLook.x += dx;
         gameState.touchLook.y += dy;
       }
