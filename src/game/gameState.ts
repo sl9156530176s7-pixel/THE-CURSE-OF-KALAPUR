@@ -8,6 +8,7 @@ export interface GameSettings {
   musicVolume: number;
   sfxVolume: number;
   mouseSensitivity: number;
+  movementSensitivity: number;
   graphicsQuality: 'low' | 'medium' | 'high';
   showSubtitles: boolean;
   villainType: 'tatya' | 'ghost';
@@ -110,6 +111,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   musicVolume: 0.7,
   sfxVolume: 0.9,
   mouseSensitivity: 0.85,
+  movementSensitivity: 1.0,
   graphicsQuality: 'high',
   showSubtitles: true,
   villainType: 'tatya',
@@ -242,7 +244,7 @@ export class GameStateManager {
   public currentObjective = 'Escape via Front Gate, Garage Car, or Underground River Boat. Check drawers & rooms!';
   public doorsUnlocked: Record<string, boolean> = {
     masterBedroom: false,
-    attic: false,
+    attic: true,
     exitDoor: false,
   };
   public doorsOpen: Record<string, boolean> = {};
@@ -511,7 +513,7 @@ export class GameStateManager {
     this.gateUnlocked = false;
     this.doorsUnlocked = {
       masterBedroom: false,
-      attic: false,
+      attic: true,
       exitDoor: false,
     };
     this.doorsOpen = {};

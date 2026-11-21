@@ -336,6 +336,23 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onPlay, onContinue, onReplay
                   />
                 </div>
 
+                {/* Movement Sensitivity (Walk & Sprint Speed) */}
+                <div>
+                  <div className="flex justify-between mb-1.5 font-medium">
+                    <span>Movement Sensitivity (Walk / Sprint)</span>
+                    <span className="font-mono text-red-400">{(settings.movementSensitivity ?? 1.0).toFixed(2)}x</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="1.8"
+                    step="0.05"
+                    value={settings.movementSensitivity ?? 1.0}
+                    onChange={(e) => handleSettingChange('movementSensitivity', parseFloat(e.target.value))}
+                    className="w-full accent-red-600 bg-stone-800 h-1.5 rounded cursor-pointer"
+                  />
+                </div>
+
                 {/* Graphics Quality & FPS Target */}
                 <div className="flex justify-between items-center pt-2 gap-2">
                   <span>Graphics &amp; FPS</span>
@@ -483,8 +500,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onPlay, onContinue, onReplay
                   </h3>
                   <p className="text-stone-300 text-xs leading-relaxed">
                     The Grand Exit Door in the Foyer has an empty cursed frame mount. The door cannot be opened until the
-                    sacred Ancestor Photo Frame is restored. Search the upper floors, find the keys to unlock the Master Bedroom
-                    and Mystic Sanctum, retrieve the frame, carry it back downstairs, attach it with <strong className="text-red-400">[E]</strong>, and escape!
+                    sacred Ancestor Photo Frame is restored. Search the upper floors and enter the unsealed Mystic Sanctum,
+                    retrieve the frame, carry it back downstairs, attach it with <strong className="text-red-400">[E]</strong>, and escape!
                   </p>
                 </div>
 

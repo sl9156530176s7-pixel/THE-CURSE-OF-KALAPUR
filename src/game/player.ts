@@ -409,8 +409,8 @@ export class PlayerController {
     let rawTouchX = this.touchMove.x + gameState.touchMove.x;
     let rawTouchZ = this.touchMove.z + gameState.touchMove.z;
     const touchMag = Math.hypot(rawTouchX, rawTouchZ);
-    if (touchMag > 0.14) {
-      const scaledMag = Math.min(1, (touchMag - 0.14) / 0.86);
+    if (touchMag > 0.08) {
+      const scaledMag = Math.min(1, (touchMag - 0.08) / 0.92);
       rawTouchX = (rawTouchX / touchMag) * scaledMag;
       rawTouchZ = (rawTouchZ / touchMag) * scaledMag;
     } else {
@@ -424,9 +424,10 @@ export class PlayerController {
     const isMoving = inputLen > 0.05;
     this.isMoving = isMoving;
 
-    let targetSpeed = this.walkSpeed;
-    if (gameState.isSprinting) targetSpeed = this.sprintSpeed;
-    if (gameState.isCrouching) targetSpeed = this.crouchSpeed;
+    const moveSens = Math.max(0.5, Math.min(1.8, gameState.settings.movementSensitivity ?? 1.0));
+    let targetSpeed = this.walkSpeed * moveSens;
+    if (gameState.isSprinting) targetSpeed = this.sprintSpeed * moveSens;
+    if (gameState.isCrouching) targetSpeed = this.crouchSpeed * moveSens;
 
     const speedFactor = Math.min(1, inputLen);
     this.tmpMoveVec.set(moveX, 0, moveZ);
@@ -755,9 +756,13 @@ export class PlayerController {
           break;
         }
 
-        // Interior doors
-        if (item.requiresKey && !gameState[item.requiresKey as keyof typeof gameState]) {
-          gameState.showSubtitle(`Locked! You need the ${item.requiresKey === 'hasBrassKey' ? 'Brass Key (check living room drawer)' : 'Sanctum Key (check storage workbench)'}.`);
+        // Interior doors (Sanctum Key also serves as a Master Skeleton Key for Master Bedroom)
+        const hasMatchingKey =
+          !item.requiresKey ||
+          !!gameState[item.requiresKey as keyof typeof gameState] ||
+          (item.requiresKey === 'hasBrassKey' && gameState.hasAtticKey);
+        if (!hasMatchingKey) {
+          gameState.showSubtitle(`Locked! You need the Brass Key or Sanctum Key (search drawers).`);
           soundManager.playCreepyThud(0.3);
           return;
         }
@@ -776,7 +781,7 @@ export class PlayerController {
           gameState.showSubtitle('Collected Old Brass Key! Can unlock Master Bedroom upstairs.');
         } else if (item.id === 'key-attic') {
           gameState.hasAtticKey = true;
-          gameState.showSubtitle('Collected Sanctum Key! Can unlock the Mystic Sanctum attic.');
+          gameState.showSubtitle('Collected Sanctum Master Key! Mystic Sanctum is open — also unlocks Master Bedroom!');
         }
         item.collected = true;
         item.action?.();

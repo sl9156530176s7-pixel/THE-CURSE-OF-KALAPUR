@@ -147,6 +147,22 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({ onResume, onSave, onMainMe
                 />
               </div>
 
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span>Movement Sensitivity (Walk / Sprint)</span>
+                  <span className="font-mono text-red-400">{(settings.movementSensitivity ?? 1.0).toFixed(2)}x</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.5"
+                  max="1.8"
+                  step="0.05"
+                  value={settings.movementSensitivity ?? 1.0}
+                  onChange={(e) => handleSettingChange('movementSensitivity', parseFloat(e.target.value))}
+                  className="w-full accent-red-600 bg-stone-800 h-1.5 rounded cursor-pointer"
+                />
+              </div>
+
               {/* Graphics & FPS Setting */}
               <div className="flex justify-between items-center pt-2 border-t border-stone-800 gap-2">
                 <div className="flex flex-col text-left">

@@ -1133,7 +1133,7 @@ export function buildKalapurHouse(): HouseData {
 
   createInteriorDoor('door-master', 'Master Bedroom Door', 3.8, 4.5, 0.8, Math.PI / 2, 'hasBrassKey', 1.6);
   createInteriorDoor('door-guest', 'Guest Bedroom Door', -3.8, 4.5, 0.8, Math.PI / 2, undefined, 1.6);
-  createInteriorDoor('door-attic', 'Mystic Sanctum Gate', -0.95, 4.5, -8, 0, 'hasAtticKey', 1.9);
+  createInteriorDoor('door-attic', 'Mystic Sanctum Gate', -0.95, 4.5, -8, 0, undefined, 1.9);
   createInteriorDoor('door-kitchen', 'Kitchen Door', -13.0, 0, 5.0, 0, undefined, 1.9);
   createInteriorDoor('door-garage', 'Garage Service Door', 14.0, 0, 17.0, 0, undefined, 2.0);
   createInteriorDoor('door-armoury', 'Armoury Door', -6.0, 0, -13.0, Math.PI / 2, undefined, 2.0);
