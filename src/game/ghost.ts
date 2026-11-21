@@ -11,6 +11,14 @@ import { getMansionFloorHeight, InteractiveObject } from './houseGeometry';
 
 export type GhostState = 'patrol' | 'investigate' | 'search' | 'chase';
 
+/**
+ * Sacred Puja Prayer Shrine / Mantra Sanctuary (Ground Floor East-South Wing: X 6..20, Z 10.5..17).
+ * Evil spirits (Tatya Vinchu & Kalapur Ghost) cannot enter this holy mantra-protected space.
+ */
+export function isInsideMantraSanctuary(x: number, y: number, z: number, margin = 0): boolean {
+  return y < 2.5 && x >= 6.0 - margin && x <= 20.2 && z >= 10.4 - margin && z <= 17.2 + margin;
+}
+
 export class KalapurGhost {
   public mesh: THREE.Group;
   public state: GhostState = 'patrol';
@@ -57,6 +65,7 @@ export class KalapurGhost {
   private lastSpottedDialogueTime = 0;
   private isChantingDialogue = false;
   private breakerSabotageTimer = 60;
+  private lastMantraWardTime = 0;
 
   // Reusable zero-GC scratch helpers
   private tmpGhostDir = new THREE.Vector3();
@@ -696,11 +705,22 @@ export class KalapurGhost {
       this.mesh.position.y = this.position.y; // Walks firmly on floor - NO FLYING!
     }
 
+    // Enforce sacred Mantra Sanctuary ejection if ever pushed inside Puja Shrine
+    if (isInsideMantraSanctuary(this.position.x, this.position.y, this.position.z, 0.15)) {
+      if (this.position.x - 5.7 <= this.position.z - 10.1) {
+        this.position.x = 5.45;
+      } else {
+        this.position.z = 9.9;
+      }
+      this.mesh.position.set(this.position.x, this.position.y, this.position.z);
+    }
+
     // Distance to player (both 3D and same-floor horizontal proximity)
     const distToPlayer = this.position.distanceTo(playerPos);
     const horizDist = Math.hypot(this.position.x - playerPos.x, this.position.z - playerPos.z);
     const vertDiff = Math.abs((this.position.y + 1.1) - playerPos.y);
     const closeReachRange = diff === 'hardcore' ? 1.55 : diff === 'nightmare' ? 1.45 : 1.38;
+    const playerInMantraPlace = isInsideMantraSanctuary(playerPos.x, playerPos.y - 1.6, playerPos.z, 0.05);
     gameState.ghostDistance = distToPlayer;
 
     // Trigger dialogue and head lock when player spots Tatya directly
@@ -867,7 +887,7 @@ export class KalapurGhost {
 
         // If player hid while ghost was chasing, only catch if right beside hiding spot (<1.65m); otherwise search nearby
         if (isPlayerHiding) {
-          if (horizDist < 1.65 && vertDiff < 1.85) {
+          if (!playerInMantraPlace && horizDist < 1.65 && vertDiff < 1.85) {
             this.sightKillTimer = 0;
             onCatchPlayer();
             return;
@@ -881,26 +901,52 @@ export class KalapurGhost {
           break;
         }
 
+        // If player stands safely inside the Sacred Puja / Mantra Shrine, Villain CANNOT enter or strike
+        if (playerInMantraPlace && isInsideMantraSanctuary(this.position.x, this.position.y, this.position.z, 1.35)) {
+          const nowMs = performance.now();
+          if (nowMs - this.lastMantraWardTime > 5500) {
+            this.lastMantraWardTime = nowMs;
+            gameState.showSubtitle(
+              isTatya
+                ? "HOLY MANTRA WARD! Sacred Puja chants block Tatya from entering!"
+                : "HOLY MANTRA WARD! The Ghost cannot cross into the Puja Shrine!",
+              3800
+            );
+          }
+          if (this.stateTimer > 2.2) {
+            this.state = 'patrol';
+            this.stateTimer = 0;
+            this.selectNextWaypoint();
+            soundManager.setMusicMood('explore');
+            break;
+          }
+        }
+
         // Track live player position whenever in line of sight OR making audible footsteps while chased
         if (this.hasDirectVision) {
           this.lastKnownPlayerPos.copy(playerPos);
-          this.stateTimer = 0; // reset lost-sight memory timer while actively seeing player
+          if (!playerInMantraPlace) {
+            this.stateTimer = 0; // reset lost-sight memory timer while chasing outside Mantra Place
+          }
           this.currentSpeed = 4.55 * speedMult;
         } else if (ghostHearsNoise) {
           this.lastKnownPlayerPos.copy(playerPos);
-          this.stateTimer = Math.min(this.stateTimer, 1.5);
+          if (!playerInMantraPlace) {
+            this.stateTimer = Math.min(this.stateTimer, 1.5);
+          }
           this.currentSpeed = this.chaseSpeed * speedMult;
         } else {
           this.currentSpeed = this.chaseSpeed * speedMult;
         }
 
-        // Move directly toward player / last known tracked position
+        // Move directly toward player / last known tracked position (moveToward blocks Mantra entry)
         this.moveToward(this.lastKnownPlayerPos, delta, colliders);
 
-        // CLOSE-RANGE KILL ONLY: Ghost never kills from far sight; must reach close unobstructed proximity
+        // CLOSE-RANGE KILL ONLY: Never kills inside the Sacred Mantra Shrine or through walls
         const postHorizDist = Math.hypot(this.position.x - playerPos.x, this.position.z - playerPos.z);
         const postVertDiff = Math.abs((this.position.y + 1.1) - playerPos.y);
         if (
+          !playerInMantraPlace &&
           postHorizDist < closeReachRange &&
           postVertDiff < 1.85 &&
           this.hasUnobstructedReach(playerPos, colliders, postHorizDist)
@@ -1108,6 +1154,10 @@ export class KalapurGhost {
         if (box.intersectsBox(this.tmpBoxZ)) collideZ = true;
       }
 
+      // Sacred Mantra Barrier: block Ghost/Tatya from stepping inside Puja Prayer Shrine
+      if (isInsideMantraSanctuary(nextX, this.position.y, this.position.z, 0.35)) collideX = true;
+      if (isInsideMantraSanctuary(this.position.x, this.position.y, nextZ, 0.35)) collideZ = true;
+
       if (!collideX) this.position.x = nextX;
       if (!collideZ) this.position.z = nextZ;
 
@@ -1122,12 +1172,14 @@ export class KalapurGhost {
           this.tmpBoxMin.set(this.position.x + sideX - villainRadius, this.position.y + 0.1, this.position.z + sideZ - villainRadius);
           this.tmpBoxMax.set(this.position.x + sideX + villainRadius, this.position.y + 1.8, this.position.z + sideZ + villainRadius);
           this.tmpBoxX.set(this.tmpBoxMin, this.tmpBoxMax);
-          let sideBlocked = false;
-          for (const box of colliders) {
-            if (box.max.y < this.position.y || box.min.y > this.position.y + 2.0) continue;
-            if (box.intersectsBox(this.tmpBoxX)) {
-              sideBlocked = true;
-              break;
+          let sideBlocked = isInsideMantraSanctuary(this.position.x + sideX, this.position.y, this.position.z + sideZ, 0.35);
+          if (!sideBlocked) {
+            for (const box of colliders) {
+              if (box.max.y < this.position.y || box.min.y > this.position.y + 2.0) continue;
+              if (box.intersectsBox(this.tmpBoxX)) {
+                sideBlocked = true;
+                break;
+              }
             }
           }
           if (!sideBlocked) {
@@ -1139,8 +1191,8 @@ export class KalapurGhost {
         }
       }
     } else {
-      this.position.x = nextX;
-      this.position.z = nextZ;
+      if (!isInsideMantraSanctuary(nextX, this.position.y, this.position.z, 0.35)) this.position.x = nextX;
+      if (!isInsideMantraSanctuary(this.position.x, this.position.y, nextZ, 0.35)) this.position.z = nextZ;
     }
 
     // FIRMLY LOCK TO FLOOR ELEVATION (Stairs and floors) - NEVER FLY!

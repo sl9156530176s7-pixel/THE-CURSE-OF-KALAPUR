@@ -533,6 +533,24 @@ export function buildKalapurHouse(): HouseData {
   bellGroup.add(bellChain, bellBody);
   root.add(bellGroup);
 
+  // Sacred Holy Mantra Protection Barrier Strips (marks Ghost-proof Puja Sanctuary boundary)
+  const mantraWardMat = new THREE.MeshBasicMaterial({
+    color: 0xfbbf24,
+    transparent: true,
+    opacity: 0.72,
+    side: THREE.DoubleSide,
+  });
+  const pujaWestWard = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 6.2), mantraWardMat);
+  pujaWestWard.rotation.x = -Math.PI / 2;
+  pujaWestWard.position.set(6.15, 0.02, 13.75);
+  const pujaNorthWard = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.16), mantraWardMat);
+  pujaNorthWard.rotation.x = -Math.PI / 2;
+  pujaNorthWard.position.set(14.0, 0.02, 10.65);
+  const mantraAuraRing = new THREE.Mesh(new THREE.RingGeometry(1.45, 1.6, 28), mantraWardMat);
+  mantraAuraRing.rotation.x = -Math.PI / 2;
+  mantraAuraRing.position.set(13.5, 0.022, 13.5);
+  root.add(pujaWestWard, pujaNorthWard, mantraAuraRing);
+
   // Dining Hall (East Wing North, Z: -8..1.5, X: 6..20)
   addWall(9.5, 0, 1.5, 7.0, WH, TH);
   addWall(17.5, 0, 1.5, 5.0, WH, TH);
@@ -2524,11 +2542,14 @@ export function buildKalapurHouse(): HouseData {
   // =========================================================================
   const ghostWaypoints: THREE.Vector3[] = [
     new THREE.Vector3(0, 4.5, -14),       // Mystic Sanctum Altar (2F)
+    new THREE.Vector3(-12.0, 4.5, -12.0), // Secret Library Archive (2F)
+    new THREE.Vector3(0, 4.5, -14),
     new THREE.Vector3(6.0, 4.5, -14.0),   // Archway into NE Astrology Study (2F)
     new THREE.Vector3(10.0, 4.5, -14.0),
     new THREE.Vector3(14.0, 4.5, -17.0),  // Zamindar Astrology Study
     new THREE.Vector3(12.0, 4.5, -10.5),
     new THREE.Vector3(12.0, 4.5, -5.5),   // Doll Nursery (2F)
+    new THREE.Vector3(17.2, 4.5, -5.8),   // Upper Master Washroom (2F)
     new THREE.Vector3(12.0, 4.5, 4.5),    // Master Bedroom (2F)
     new THREE.Vector3(3.8, 4.5, 0.0),
     new THREE.Vector3(0, 4.5, 2.0),
@@ -2560,16 +2581,12 @@ export function buildKalapurHouse(): HouseData {
     new THREE.Vector3(7.8, 0, -11.5),     // Loop back through Dining North Archway!
     new THREE.Vector3(7.8, 0, -5.0),
     new THREE.Vector3(13.5, 0, -3.5),     // Dining Hall
-    new THREE.Vector3(13.5, 0, 6.0),      // Living Baithak
-    new THREE.Vector3(14.5, 0, 14.0),     // Puja Room
-    new THREE.Vector3(15.0, 0, 19.5),     // East Garage
-    new THREE.Vector3(15.0, 0, 25.0),
-    new THREE.Vector3(15.0, 0, 19.5),
-    new THREE.Vector3(14.5, 0, 14.0),
-    new THREE.Vector3(5.5, 0, 12.0),      // Foyer & Breaker Box
+    new THREE.Vector3(13.5, 0, 6.0),      // Living Baithak (stops outside Puja Mantra Shrine!)
+    new THREE.Vector3(5.0, 0, 7.5),       // Grand Foyer East
+    new THREE.Vector3(4.8, 0, 13.8),      // Outside Mantra Ward & Foyer Breaker
     new THREE.Vector3(0, 0, 13.5),
     new THREE.Vector3(-5.5, 0, 8.0),
-    new THREE.Vector3(-13.0, 0, 11.0),    // Kitchen -> Garden Door
+    new THREE.Vector3(-13.0, 0, 11.0),    // Kitchen
     new THREE.Vector3(-13.0, 0, 5.0),
     new THREE.Vector3(-13.0, 0, -2.0),    // Storage Room
     new THREE.Vector3(-17.2, -0.3, -1.0), // Down Crypt Staircase
