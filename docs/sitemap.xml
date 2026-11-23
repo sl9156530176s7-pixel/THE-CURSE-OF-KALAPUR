@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <url>
+    <loc>https://sl9156530176s7-pixel.github.io/THE-CURSE-OF-KALAPUR/</loc>
+    <lastmod>2026-11-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://sl9156530176s7-pixel.github.io/THE-CURSE-OF-KALAPUR/screenshots/poster-wide.jpg</image:loc>
+      <image:title>The Curse of Kalapur – Official Poster by Strange Creation</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://sl9156530176s7-pixel.github.io/THE-CURSE-OF-KALAPUR/screenshots/gameplay-haveli.jpg</image:loc>
+      <image:title>The Curse of Kalapur – 3D Haveli Flashlight Gameplay</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://sl9156530176s7-pixel.github.io/THE-CURSE-OF-KALAPUR/screenshots/character-tatya.jpg</image:loc>
+      <image:title>The Curse of Kalapur – Tatya Vinchu and Kalapur Ghost</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://sl9156530176s7-pixel.github.io/THE-CURSE-OF-KALAPUR/screenshots/environment-sanctum.jpg</image:loc>
+      <image:title>The Curse of Kalapur – Sacred Puja Mantra Sanctuary</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://sl9156530176s7-pixel.github.io/THE-CURSE-OF-KALAPUR/screenshots/action-escape.jpg</image:loc>
+      <image:title>The Curse of Kalapur – Underground River Escape Route</image:title>
+    </image:image>
+  </url>
+</urlset>

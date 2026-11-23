@@ -2,16 +2,30 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { gameState, GameSettings } from '../game/gameState';
 import { soundManager } from '../audio/SoundManager';
-import { Play, RotateCcw, Settings, HelpCircle, X, Volume2, Shield, Eye, Flame, Compass, Youtube, Image as ImageIcon, Music } from 'lucide-react';
+import { Play, RotateCcw, Settings, HelpCircle, X, Volume2, Shield, Eye, Flame, Compass, Youtube, Image as ImageIcon, Music, Download, Globe, RefreshCw, Star } from 'lucide-react';
 import officialLogoImg from '../assets/images/kalapur_official_logo_1793628694332.jpg';
 
 interface MainMenuProps {
   onPlay: () => void;
   onContinue: () => void;
   onReplayIntro: () => void;
+  onBackToWebsite?: () => void;
+  onInstallApp?: () => void;
+  onRateUs?: () => void;
+  updateAvailable?: boolean;
+  onApplyUpdate?: () => void;
 }
 
-export const MainMenu: React.FC<MainMenuProps> = ({ onPlay, onContinue, onReplayIntro }) => {
+export const MainMenu: React.FC<MainMenuProps> = ({
+  onPlay,
+  onContinue,
+  onReplayIntro,
+  onBackToWebsite,
+  onInstallApp,
+  onRateUs,
+  updateAvailable,
+  onApplyUpdate,
+}) => {
   const [hasSave, setHasSave] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showHowToPlay, setShowHowToPlay] = useState(false);
@@ -228,6 +242,53 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onPlay, onContinue, onReplay
           <span>REPLAY INTRO SCENE</span>
           <span className="text-stone-600 group-hover:text-red-400">46s</span>
         </button>
+
+        {/* Update Ready Banner */}
+        {updateAvailable && onApplyUpdate && (
+          <button
+            onClick={onApplyUpdate}
+            className="col-span-2 md:col-span-1 w-full flex items-center justify-between px-4 py-2.5 bg-red-950/90 hover:bg-red-900 border border-red-500/80 rounded text-red-100 text-[11px] tracking-wider uppercase font-bold transition-all cursor-pointer"
+          >
+            <span className="flex items-center gap-2">
+              <RefreshCw className="w-3.5 h-3.5 text-red-300" />
+              UPDATE AVAILABLE — RELOAD
+            </span>
+            <span className="text-red-300 font-mono">NEW</span>
+          </button>
+        )}
+
+        {/* Install App, Rate Us & Back to Website */}
+        {(onInstallApp || onRateUs || onBackToWebsite) && (
+          <div className="col-span-2 md:col-span-1 flex gap-2">
+            {onInstallApp && (
+              <button
+                onClick={onInstallApp}
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-red-950/60 hover:bg-red-900/80 border border-red-800/60 rounded text-red-200 text-[11px] tracking-wider uppercase font-semibold transition-all cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Install App</span>
+              </button>
+            )}
+            {onRateUs && (
+              <button
+                onClick={onRateUs}
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-amber-950/50 hover:bg-amber-900/60 border border-amber-700/60 rounded text-amber-200 text-[11px] tracking-wider uppercase font-semibold transition-all cursor-pointer"
+              >
+                <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                <span>Rate Us</span>
+              </button>
+            )}
+            {onBackToWebsite && (
+              <button
+                onClick={onBackToWebsite}
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-stone-950/70 hover:bg-stone-900 border border-stone-800 rounded text-stone-300 text-[11px] tracking-wider uppercase transition-all cursor-pointer"
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>Website</span>
+              </button>
+            )}
+          </div>
+        )}
       </nav>
 
       {/* Footer System Info */}

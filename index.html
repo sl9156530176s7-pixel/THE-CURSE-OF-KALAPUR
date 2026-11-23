@@ -1,50 +1,114 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark scroll-smooth">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Kalapur" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="theme-color" content="#060810" />
-    <title>The Curse of Kalapur – 3D Indian Horror Escape Game</title>
-    <meta name="description" content="Survive Kalapur House, evade Tatya Vinchu and the roaming ghost, solve randomized mysteries, and escape alive. By Strange Creation." />
+    <meta name="color-scheme" content="dark" />
+    <meta name="application-name" content="The Curse of Kalapur" />
+    <title>Strange Creation – Official Studio Website | Play The Curse of Kalapur</title>
+    <meta
+      name="description"
+      content="Official website of Strange Creation, founded by Soham Dnyaneshwar Lokhande. Discover, play, and install our flagship 3D Indian survival horror game The Curse of Kalapur as a free Progressive Web App."
+    />
+    <meta
+      name="keywords"
+      content="Strange Creation, The Curse of Kalapur, Soham Dnyaneshwar Lokhande, MR STRANGE 1229, Indian horror game studio, 3D survival horror game, Tatya Vinchu horror game, free browser horror PWA"
+    />
+    <meta name="author" content="Strange Creation – Soham Dnyaneshwar Lokhande" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link rel="canonical" href="https://sl9156530176s7-pixel.github.io/THE-CURSE-OF-KALAPUR/" />
+
+    <!-- Progressive Web App Manifest & Icons -->
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512x512.png" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-    <link rel="icon" type="image/jpeg" href="./kalapur-cover.jpg" />
-    <link rel="apple-touch-icon" href="./kalapur-cover.jpg" />
+    <link rel="apple-touch-icon" sizes="152x152" href="./icons/icon-152x152.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png" />
+    <link rel="apple-touch-startup-image" href="./icons/icon-512x512.png" />
+
+    <!-- Open Graph / Social Sharing -->
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="The Curse of Kalapur" />
-    <meta property="og:title" content="The Curse of Kalapur – 3D Indian Horror Escape Game" />
-    <meta property="og:description" content="Survive Kalapur House, evade Tatya Vinchu and the roaming ghost, solve randomized mysteries, and escape alive. By Strange Creation." />
-    <meta property="og:image" content="./kalapur-cover.jpg" />
+    <meta property="og:site_name" content="Strange Creation" />
+    <meta property="og:url" content="https://sl9156530176s7-pixel.github.io/THE-CURSE-OF-KALAPUR/" />
+    <meta property="og:title" content="Strange Creation – Official Studio | The Curse of Kalapur" />
+    <meta
+      property="og:description"
+      content="Explore Strange Creation's official horror catalog featuring The Curse of Kalapur. Watch the trailer, browse screenshots, and install the full 3D game free."
+    />
+    <meta property="og:image" content="https://sl9156530176s7-pixel.github.io/THE-CURSE-OF-KALAPUR/screenshots/poster-wide.jpg" />
     <meta property="og:image:type" content="image/jpeg" />
     <meta property="og:image:width" content="1280" />
     <meta property="og:image:height" content="720" />
-    <meta property="og:image:alt" content="The Curse of Kalapur by Strange Creation" />
+    <meta property="og:image:alt" content="Strange Creation presents The Curse of Kalapur" />
+
+    <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="The Curse of Kalapur – 3D Indian Horror Escape Game" />
-    <meta name="twitter:description" content="Survive Kalapur House, evade Tatya Vinchu and the roaming ghost, solve randomized mysteries, and escape alive. By Strange Creation." />
-    <meta name="twitter:image" content="./kalapur-cover.jpg" />
+    <meta name="twitter:title" content="Strange Creation – Official Studio | The Curse of Kalapur" />
+    <meta
+      name="twitter:description"
+      content="Visit Strange Creation to play and install The Curse of Kalapur, a 3D Indian survival horror escape game."
+    />
+    <meta name="twitter:image" content="https://sl9156530176s7-pixel.github.io/THE-CURSE-OF-KALAPUR/screenshots/poster-wide.jpg" />
+
+    <!-- Structured Schema.org Organization + VideoGame Metadata -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "WebApplication",
-        "name": "The Curse of Kalapur",
-        "applicationCategory": "GameApplication",
-        "operatingSystem": "All",
-        "description": "Survive Kalapur House, evade Tatya Vinchu and the roaming ghost, solve randomized mysteries, and escape alive. Developed by Strange Creation (Soham Dnyaneshwar Lokhande).",
-        "offers": {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "USD"
-        }
+        "@graph": [
+          {
+            "@type": "Organization",
+            "name": "Strange Creation",
+            "url": "https://sl9156530176s7-pixel.github.io/THE-CURSE-OF-KALAPUR/",
+            "founder": {
+              "@type": "Person",
+              "name": "Soham Dnyaneshwar Lokhande"
+            }
+          },
+          {
+            "@type": "VideoGame",
+            "name": "The Curse of Kalapur",
+            "url": "https://sl9156530176s7-pixel.github.io/THE-CURSE-OF-KALAPUR/",
+            "image": "https://sl9156530176s7-pixel.github.io/THE-CURSE-OF-KALAPUR/screenshots/poster-wide.jpg",
+            "description": "Survive Kalapur House, evade Tatya Vinchu and the roaming ghost, find refuge inside the Sacred Puja Shrine, and unlock three escape routes. Developed by Strange Creation.",
+            "genre": ["Survival Horror", "3D First-Person Escape", "Indie Horror"],
+            "gamePlatform": ["Web Browser", "Progressive Web App (PWA)", "Android", "iOS", "Desktop"],
+            "operatingSystem": "Android, iOS, Windows, macOS, Linux",
+            "applicationCategory": "GameApplication",
+            "softwareVersion": "2.4.0",
+            "author": {
+              "@type": "Organization",
+              "name": "Strange Creation",
+              "founder": {
+                "@type": "Person",
+                "name": "Soham Dnyaneshwar Lokhande"
+              }
+            },
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD",
+              "availability": "https://schema.org/InStock"
+            }
+          }
+        ]
       }
     </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Creepster&family=Inter:wght@300;400;600;700&family=Rozha+One&display=swap" rel="stylesheet">
+
+    <!-- Fonts: Cinzel (Display Horror Serif), Plus Jakarta Sans (Body UI), JetBrains Mono (Technical Labels) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
   </head>
-  <body class="bg-black text-white select-none overflow-hidden antialiased touch-none">
+  <body class="bg-[#060810] text-stone-100 antialiased selection:bg-red-700/60 selection:text-white">
     <div id="root"></div>
     <script type="module" src="./src/main.tsx"></script>
   </body>

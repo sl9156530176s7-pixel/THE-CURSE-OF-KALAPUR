@@ -1,0 +1,137 @@
+{
+  "id": "./",
+  "name": "The Curse of Kalapur",
+  "short_name": "Kalapur",
+  "description": "Official 3D Indian survival horror escape game by Strange Creation. Explore the haunted 4-floor Kalapur Haveli, evade Tatya Vinchu and the Ghost, find shelter in the Puja Shrine, and escape alive.",
+  "start_url": "./?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["fullscreen", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "theme_color": "#060810",
+  "background_color": "#060810",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    {
+      "src": "./icons/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-maskable-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./icons/icon-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "./screenshots/poster-wide.jpg",
+      "sizes": "1280x720",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "The Curse of Kalapur – Official Title Key Art"
+    },
+    {
+      "src": "./screenshots/gameplay-haveli.jpg",
+      "sizes": "1280x720",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Explore the dark 4-floor Kalapur Haveli with your flashlight"
+    },
+    {
+      "src": "./screenshots/character-tatya.jpg",
+      "sizes": "1280x720",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Evade Tatya Vinchu and the Kalapur Ghost on the haunted staircase"
+    },
+    {
+      "src": "./screenshots/environment-sanctum.jpg",
+      "sizes": "1280x720",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Seek safety inside the glowing Puja Mantra Shrine"
+    },
+    {
+      "src": "./screenshots/action-escape.jpg",
+      "sizes": "1280x720",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Unlock one of 3 escape routes including the underground river crypt"
+    },
+    {
+      "src": "./screenshots/mobile-portrait.jpg",
+      "sizes": "720x1280",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Play The Curse of Kalapur as an installable standalone mobile game"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Play New Game",
+      "short_name": "Play",
+      "description": "Launch The Curse of Kalapur directly in standalone mode",
+      "url": "./?source=pwa",
+      "icons": [
+        {
+          "src": "./icons/icon-192x192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://sl9156530176s7-pixel.github.io/THE-CURSE-OF-KALAPUR/sitemap.xml

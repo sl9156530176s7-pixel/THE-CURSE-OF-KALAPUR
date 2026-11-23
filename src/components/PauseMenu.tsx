@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Play, RotateCcw, Settings, HelpCircle, Home, Save, Volume2, X, Music } from 'lucide-react';
+import { Play, RotateCcw, Settings, HelpCircle, Home, Save, Volume2, X, Music, Maximize2 } from 'lucide-react';
 import { gameState, GameSettings } from '../game/gameState';
 import { soundManager } from '../audio/SoundManager';
 
@@ -88,6 +88,25 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({ onResume, onSave, onMainMe
           >
             <HelpCircle className="w-4 h-4 text-stone-400" />
             Controls Guide
+          </button>
+
+          {/* Fullscreen Toggle */}
+          <button
+            onClick={() => {
+              try {
+                if (!document.fullscreenElement) {
+                  document.documentElement.requestFullscreen?.().catch?.(() => {});
+                } else {
+                  document.exitFullscreen?.().catch?.(() => {});
+                }
+              } catch {
+                // ignore unsupported
+              }
+            }}
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-stone-900/80 hover:bg-stone-800 border border-stone-700/60 rounded text-stone-200 text-xs font-semibold tracking-widest uppercase cursor-pointer transition-all"
+          >
+            <Maximize2 className="w-4 h-4 text-amber-400" />
+            Toggle Fullscreen
           </button>
 
           {/* Return to Main Menu */}

@@ -102,6 +102,8 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
             (screen.orientation as { lock?: (o: string) => Promise<void> })?.lock?.('landscape')?.catch?.(() => {});
           })
           .catch(() => {});
+      } else if (document.fullscreenElement) {
+        document.exitFullscreen?.().catch?.(() => {});
       } else {
         (screen.orientation as { lock?: (o: string) => Promise<void> })?.lock?.('landscape')?.catch?.(() => {});
       }
@@ -529,17 +531,15 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
             <span className="font-bold">MAP</span>
           </button>
 
-          {/* Landscape Fullscreen Button (Android Horizontal) */}
-          {touchEnabled && (
-            <button
-              onClick={enterHorizontalFullscreen}
-              title="Fullscreen Horizontal Mode"
-              className="px-2.5 py-1.5 rounded text-[10px] font-mono bg-stone-950/92 hover:bg-stone-800 border border-stone-700/80 text-stone-200 flex items-center gap-1 cursor-pointer shadow-md whitespace-nowrap"
-            >
-              <Maximize2 className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden md:inline">FULL</span>
-            </button>
-          )}
+          {/* Fullscreen Toggle Button (Desktop & Mobile Landscape) */}
+          <button
+            onClick={enterHorizontalFullscreen}
+            title="Toggle Fullscreen Mode"
+            className="px-2.5 py-1.5 rounded text-[10px] font-mono bg-stone-950/92 hover:bg-stone-800 border border-stone-700/80 text-stone-200 flex items-center gap-1 cursor-pointer shadow-md whitespace-nowrap"
+          >
+            <Maximize2 className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden md:inline">FULL</span>
+          </button>
 
           {/* Toggle Song Button */}
           <button
