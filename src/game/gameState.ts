@@ -9,7 +9,8 @@ export interface GameSettings {
   sfxVolume: number;
   mouseSensitivity: number;
   movementSensitivity: number;
-  graphicsQuality: 'low' | 'medium' | 'high';
+  graphicsQuality: 'low' | 'smooth90' | 'medium' | 'high';
+  fpsPresetVersion?: number;
   showSubtitles: boolean;
   villainType: 'tatya' | 'ghost';
   songEnabled: boolean;
@@ -106,13 +107,18 @@ export interface SaveData {
   difficulty?: 'normal' | 'nightmare' | 'hardcore';
 }
 
+const detectMobileDefault = (): boolean =>
+  typeof window !== 'undefined' &&
+  ('ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth < 1024);
+
 const DEFAULT_SETTINGS: GameSettings = {
   masterVolume: 0.8,
   musicVolume: 0.7,
   sfxVolume: 0.9,
   mouseSensitivity: 0.85,
   movementSensitivity: 1.0,
-  graphicsQuality: 'high',
+  graphicsQuality: 'smooth90',
+  fpsPresetVersion: 2,
   showSubtitles: true,
   villainType: 'tatya',
   songEnabled: true,
@@ -288,7 +294,17 @@ export class GameStateManager {
     try {
       const stored = localStorage.getItem(SETTINGS_KEY);
       if (stored) {
-        this.settings = { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
+        const parsed = JSON.parse(stored) as Partial<GameSettings>;
+        const merged: GameSettings = { ...DEFAULT_SETTINGS, ...parsed };
+        // One-time auto-upgrade for devices running old pre-v2.5 heavy 'high' default
+        if ((parsed.fpsPresetVersion ?? 0) < 2) {
+          if (detectMobileDefault() || parsed.graphicsQuality === 'high') {
+            merged.graphicsQuality = 'smooth90';
+          }
+          merged.fpsPresetVersion = 2;
+          localStorage.setItem(SETTINGS_KEY, JSON.stringify(merged));
+        }
+        this.settings = merged;
       }
     } catch (e) {
       console.warn('Failed to load settings:', e);
@@ -296,7 +312,7 @@ export class GameStateManager {
   }
 
   public saveSettings(newSettings: Partial<GameSettings>) {
-    this.settings = { ...this.settings, ...newSettings };
+    this.settings = { ...this.settings, ...newSettings, fpsPresetVersion: 2 };
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(this.settings));
     } catch (e) {

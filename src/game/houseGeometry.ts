@@ -90,9 +90,25 @@ export interface InteractiveObject {
   colliderBox?: THREE.Box3;
 }
 
+export interface ColliderBuckets {
+  crypt: THREE.Box3[];
+  ground: THREE.Box3[];
+  upper: THREE.Box3[];
+  attic: THREE.Box3[];
+}
+
+export function getFloorColliders(buckets: ColliderBuckets | undefined, y: number, fallback: THREE.Box3[]): THREE.Box3[] {
+  if (!buckets) return fallback;
+  if (y < -0.6) return buckets.crypt;
+  if (y < 3.4) return buckets.ground;
+  if (y < 7.6) return buckets.upper;
+  return buckets.attic;
+}
+
 export interface HouseData {
   root: THREE.Group;
   colliders: THREE.Box3[];
+  colliderBuckets: ColliderBuckets;
   interactives: InteractiveObject[];
   exitDoorMesh: THREE.Group;
   frameMountMesh: THREE.Mesh;
@@ -968,6 +984,7 @@ export function buildKalapurHouse(): HouseData {
 
     const hLight = new THREE.SpotLight(0xfef9c3, 0, 18, Math.PI / 5, 0.45, 1.4);
     hLight.position.set(hx, 0.75, 2.25);
+    hLight.visible = false;
     const hTarget = new THREE.Object3D();
     hTarget.position.set(hx, 0.4, 9.0);
     carGroup.add(hLight, hTarget);
@@ -1008,8 +1025,10 @@ export function buildKalapurHouse(): HouseData {
   const crossBeam = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.18, 0.18), darkTeakMat);
   crossBeam.position.set(0, 2.5, 0);
   const wellGlow = new THREE.PointLight(0x22c55e, 0.8, 4.0, 2.0);
-  wellGlow.position.set(0, 0.6, 0);
-  wellGroup.add(wellRimOuter, wellWater, crossBeam, wellGlow);
+  wellGlow.position.set(-6.5, 0.6, 23);
+  wellGlow.userData.baseIntensity = 0.8;
+  flickerLights.push(wellGlow);
+  wellGroup.add(wellRimOuter, wellWater, crossBeam);
   root.add(wellGroup);
   colliders.push(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(-6.5, 0.6, 23), new THREE.Vector3(3.2, 1.2, 3.2)));
 
@@ -2605,9 +2624,61 @@ export function buildKalapurHouse(): HouseData {
     new THREE.Vector3(0, 4.5, -9.0),
   ];
 
+  // Partition static colliders by overlapping vertical floor bands (cuts Box3 checks ~3x per frame)
+  const colliderBuckets: ColliderBuckets = {
+    crypt: [],
+    ground: [],
+    upper: [],
+    attic: [],
+  };
+  for (const box of colliders) {
+    if (box.min.y <= 1.8) colliderBuckets.crypt.push(box);
+    if (box.max.y >= -1.8 && box.min.y <= 5.2) colliderBuckets.ground.push(box);
+    if (box.max.y >= 2.0 && box.min.y <= 9.6) colliderBuckets.upper.push(box);
+    if (box.max.y >= 6.0) colliderBuckets.attic.push(box);
+  }
+
+  // Freeze static architectural transform matrices so Three.js skips ~500+ Matrix4 recalculations per frame
+  const dynamicObjs = new Set<THREE.Object3D>();
+  const markDynamicChain = (obj?: THREE.Object3D) => {
+    let cur: THREE.Object3D | null | undefined = obj;
+    while (cur && cur !== root) {
+      dynamicObjs.add(cur);
+      cur = cur.parent;
+    }
+  };
+  for (const item of interactives) {
+    markDynamicChain(item.mesh);
+    markDynamicChain(item.drawerMesh);
+    markDynamicChain(item.waterStreamMesh);
+  }
+  for (const p of pendulums) markDynamicChain(p);
+  for (const ws of waterStreams) markDynamicChain(ws);
+  for (const gr of glintRings) markDynamicChain(gr);
+  for (const ch of carHeadlights) markDynamicChain(ch);
+  for (const cb of carHeadlightBulbs) markDynamicChain(cb);
+  markDynamicChain(rockingChair);
+  markDynamicChain(gateChainMesh);
+  markDynamicChain(gatePadlockMesh);
+  markDynamicChain(placedFrameMesh);
+  markDynamicChain(frameMountMesh);
+  markDynamicChain(breakerLedMesh);
+  markDynamicChain(secretBookcaseGroup);
+  markDynamicChain(mandalaMesh);
+  markDynamicChain(exitDoorMesh);
+
+  root.updateMatrixWorld(true);
+  root.traverse((obj) => {
+    if (obj !== root && !dynamicObjs.has(obj)) {
+      obj.updateMatrix();
+      obj.matrixAutoUpdate = false;
+    }
+  });
+
   return {
     root,
     colliders,
+    colliderBuckets,
     interactives,
     exitDoorMesh,
     frameMountMesh,

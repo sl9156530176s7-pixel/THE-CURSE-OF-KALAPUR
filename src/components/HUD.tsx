@@ -252,6 +252,21 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
       setTick((t) => t + 1);
     });
 
+    let lastBat = Math.round(gameState.flashlightBattery);
+    let lastStam = Math.round(gameState.stamina);
+    let lastStun = Math.ceil(gameState.villainStunTimer);
+    const gaugeTimer = window.setInterval(() => {
+      const bat = Math.round(gameState.flashlightBattery);
+      const stam = Math.round(gameState.stamina);
+      const stun = Math.ceil(gameState.villainStunTimer);
+      if (bat !== lastBat || stam !== lastStam || stun !== lastStun) {
+        lastBat = bat;
+        lastStam = stam;
+        lastStun = stun;
+        setTick((t) => t + 1);
+      }
+    }, 250);
+
     const handleKeyDown = (e: KeyboardEvent) => {
       // 'M' toggles the horror background song
       if (e.code === 'KeyM' && !e.repeat) {
@@ -355,6 +370,7 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
     window.addEventListener('mouseup', handleWindowMouseUp);
 
     return () => {
+      clearInterval(gaugeTimer);
       unsub();
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('resize', handleOrientationCheck);

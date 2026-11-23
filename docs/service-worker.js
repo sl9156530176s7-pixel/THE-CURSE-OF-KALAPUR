@@ -97,7 +97,7 @@ define(['./workbox-02894ca7'], (function (workbox) { 'use strict';
     "revision": "5ee6d2402b0a0c5fd0e14d09e1a5ec20"
   }, {
     "url": "index.html",
-    "revision": "1680e1edd9c1c0c5821dfc8a2c8d678e"
+    "revision": "3b3852943bcc6d6f7d11b8863ff72a7c"
   }, {
     "url": "favicon.svg",
     "revision": "d8334d4ff07ed925f40135fc3ffcc00c"
@@ -168,10 +168,10 @@ define(['./workbox-02894ca7'], (function (workbox) { 'use strict';
     "url": "assets/index-BeHa2R8v.css",
     "revision": null
   }, {
-    "url": "assets/index-3OmvBycb.js",
+    "url": "assets/index-B2jAJwWQ.js",
     "revision": null
   }, {
-    "url": "assets/GameCanvas-BJRWr3Tq.js",
+    "url": "assets/GameCanvas-7omhp1PC.js",
     "revision": null
   }, {
     "url": "assets/aistudio/image_476c18a2.png",

@@ -1,14 +1,13 @@
 {
-  "version": "2.4.0",
-  "buildId": "2026.11.22-pwa",
-  "releaseDate": "2026-11-22",
+  "version": "2.5.0",
+  "buildId": "2026.11.23-90fps",
+  "releaseDate": "2026-11-23",
   "developer": "Strange Creation",
   "founder": "Soham Dnyaneshwar Lokhande",
   "highlights": [
-    "Official installable Progressive Web App (PWA) for Android, iOS Safari, and Desktop",
-    "Silky-smooth touch & mouse look interpolation plus custom Movement Sensitivity slider",
-    "Sacred Puja Mantra safe zone protecting against the roaming Kalapur Ghost",
-    "Low 50 FPS and High 60 FPS visual clarity modes for mobile and desktop devices",
-    "Refined 3D keys, tools, openable drawers, and lag-free 46-second cinematic intro"
+    "New 90 FPS Smooth preset tuned for Android phones and 90Hz/120Hz displays",
+    "Pooled room lighting eliminates mid-game shader compilation stutters",
+    "Spatial floor collider bucketing & static matrix freezing for zero-lag gameplay",
+    "Interactive Rate Us feedback across Strange Creation studio site & Main Menu"
   ]
 }

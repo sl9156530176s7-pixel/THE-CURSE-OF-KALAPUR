@@ -36,7 +36,7 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({ onResume, onSave, onMainMe
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md select-none font-serif">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 select-none font-serif">
       <div className="w-full max-w-sm bg-stone-950 border border-stone-800 p-5 sm:p-7 rounded shadow-2xl text-center space-y-3 max-h-[92vh] overflow-y-auto">
         <div className="border-b border-stone-800 pb-4 mb-2">
           <span className="text-[10px] text-red-500 font-mono tracking-[0.3em] uppercase block mb-1">
@@ -183,16 +183,17 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({ onResume, onSave, onMainMe
               </div>
 
               {/* Graphics & FPS Setting */}
-              <div className="flex justify-between items-center pt-2 border-t border-stone-800 gap-2">
+              <div className="flex flex-wrap justify-between items-center pt-2 border-t border-stone-800 gap-2">
                 <div className="flex flex-col text-left">
                   <span className="font-semibold text-stone-200">Graphics &amp; FPS</span>
-                  <span className="text-[10px] text-stone-500">50 FPS Low • 60 FPS High</span>
+                  <span className="text-[10px] text-stone-500">90 FPS recommended on phones</span>
                 </div>
-                <div className="flex gap-1.5 shrink-0">
+                <div className="flex flex-wrap gap-1.5 shrink-0">
                   {([
-                    { id: 'low', label: 'Low 50fps' },
-                    { id: 'medium', label: 'Med' },
-                    { id: 'high', label: 'High 60fps' },
+                    { id: 'low', label: 'Low Fast' },
+                    { id: 'smooth90', label: '90 FPS' },
+                    { id: 'medium', label: 'Balanced' },
+                    { id: 'high', label: 'High HD' },
                   ] as const).map((q) => (
                     <button
                       key={q.id}

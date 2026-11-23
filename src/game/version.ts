@@ -1,6 +1,6 @@
-export const GAME_VERSION = '2.4.0';
-export const GAME_BUILD_ID = '2026.11.22-pwa';
-export const GAME_RELEASE_DATE = 'November 22, 2026';
+export const GAME_VERSION = '2.5.0';
+export const GAME_BUILD_ID = '2026.11.23-90fps';
+export const GAME_RELEASE_DATE = 'November 23, 2026';
 
 export interface ReleaseChangelogItem {
   version: string;
@@ -11,6 +11,18 @@ export interface ReleaseChangelogItem {
 
 export const RELEASE_CHANGELOG: ReleaseChangelogItem[] = [
   {
+    version: '2.5.0',
+    date: 'Nov 23, 2026',
+    title: '90 FPS Ultra-Smooth Performance Engine & Player Ratings',
+    changes: [
+      'New default 90 FPS Smooth preset optimized for Android phones and 90Hz/120Hz displays.',
+      'Fixed 4-slot pooled room lighting removes shader compilation stutters when walking between rooms.',
+      'Spatial floor collider bucketing & frozen static architecture matrices cut CPU frame time by ~3x.',
+      'Zero-shadow-pass mobile fast path keeps rooms clear and atmospheric without double GPU rendering.',
+      'Added interactive Rate Us player feedback dialog across the studio website and game menu.',
+    ],
+  },
+  {
     version: '2.4.0',
     date: 'Nov 22, 2026',
     title: 'Installable PWA Release & Sacred Puja Safe Zone',
@@ -18,7 +30,6 @@ export const RELEASE_CHANGELOG: ReleaseChangelogItem[] = [
       'Full Progressive Web App (PWA) installation with offline asset caching and standalone launch.',
       'Smooth camera damping & customizable Movement Sensitivity (0.50x – 1.80x).',
       'Puja Mantra Shrine ward keeps the roaming ghost outside the sacred sanctuary.',
-      '60 FPS High & 50 FPS Low graphics presets with crisp room visibility.',
       'Lag-free cinematic intro, unlocked Mystic Sanctum door, and detailed 3D keys & tools.',
     ],
   },

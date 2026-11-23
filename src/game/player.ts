@@ -608,10 +608,12 @@ export class PlayerController {
   }
 
   private checkInteractives(interactives: InteractiveObject[]) {
-    this.raycaster.setFromCamera(this.tmpScreenCenter, this.camera);
     this.camera.getWorldDirection(this.tmpLookDir);
     let closest: InteractiveObject | null = null;
     let closestScore = 3.0; // interaction reach (meters)
+    const camX = this.camera.position.x;
+    const camY = this.camera.position.y;
+    const camZ = this.camera.position.z;
 
     for (const item of interactives) {
       if (item.collected) continue;
@@ -619,18 +621,25 @@ export class PlayerController {
       if (item.type !== 'drawer' && item.drawerId && !gameState.drawersOpen[item.drawerId]) {
         continue;
       }
+      if (Math.abs(item.position.y - camY) > 3.2) continue;
       if (item.drawerId) {
         item.mesh.getWorldPosition(item.position);
       }
-      const dist = this.camera.position.distanceTo(item.position);
-      if (dist < 3.0) {
-        this.tmpToObj.copy(item.position).sub(this.camera.position).normalize();
-        if (this.tmpLookDir.dot(this.tmpToObj) > 0.66) {
-          // Prioritize items resting inside an open drawer over closing the drawer itself
-          const effectiveScore = item.type === 'drawer' && item.isOpen ? dist + 0.55 : dist;
-          if (effectiveScore < closestScore) {
-            closestScore = effectiveScore;
-            closest = item;
+      const dx = item.position.x - camX;
+      const dy = item.position.y - camY;
+      const dz = item.position.z - camZ;
+      const distSq = dx * dx + dy * dy + dz * dz;
+      if (distSq < 9.0) {
+        const dist = Math.sqrt(distSq);
+        if (dist > 0.0001) {
+          this.tmpToObj.set(dx / dist, dy / dist, dz / dist);
+          if (this.tmpLookDir.dot(this.tmpToObj) > 0.66) {
+            // Prioritize items resting inside an open drawer over closing the drawer itself
+            const effectiveScore = item.type === 'drawer' && item.isOpen ? dist + 0.55 : dist;
+            if (effectiveScore < closestScore) {
+              closestScore = effectiveScore;
+              closest = item;
+            }
           }
         }
       }

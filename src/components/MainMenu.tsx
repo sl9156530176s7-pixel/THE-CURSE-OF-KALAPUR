@@ -308,7 +308,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       {/* SETTINGS MODAL */}
       <AnimatePresence>
         {showSettings && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/88">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -415,13 +415,17 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 </div>
 
                 {/* Graphics Quality & FPS Target */}
-                <div className="flex justify-between items-center pt-2 gap-2">
-                  <span>Graphics &amp; FPS</span>
-                  <div className="flex gap-1.5">
+                <div className="flex flex-wrap justify-between items-center pt-2 gap-2">
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-stone-200">Graphics &amp; FPS</span>
+                    <span className="text-[10px] text-stone-500">90 FPS Smooth recommended for zero lag</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
                     {([
-                      { id: 'low', label: 'LOW 50 FPS' },
-                      { id: 'medium', label: 'MEDIUM' },
-                      { id: 'high', label: 'HIGH 60 FPS' },
+                      { id: 'low', label: 'Low Fast' },
+                      { id: 'smooth90', label: '90 FPS' },
+                      { id: 'medium', label: 'Balanced' },
+                      { id: 'high', label: 'High HD' },
                     ] as const).map((q) => (
                       <button
                         key={q.id}
@@ -519,7 +523,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       {/* HOW TO PLAY MODAL */}
       <AnimatePresence>
         {showHowToPlay && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/88">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -593,7 +597,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
 
         {/* OFFICIAL GAME LOGO ASSET SHOWCASE MODAL */}
         {showLogoModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/92">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}

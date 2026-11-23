@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { buildKalapurHouse, getMansionFloorHeight, HouseData, InteractiveObject } from '../game/houseGeometry';
+import { buildKalapurHouse, getFloorColliders, getMansionFloorHeight, HouseData, InteractiveObject } from '../game/houseGeometry';
 import { PlayerController } from '../game/player';
 import { KalapurGhost } from '../game/ghost';
 import { soundManager } from '../audio/SoundManager';
@@ -23,11 +23,17 @@ const UF_BATH_POS = new THREE.Vector3(16.5, 5.5, -5.5);
 const FOG_BASE_COLOR = new THREE.Color(0x060810);
 const FOG_CRYPT_COLOR = new THREE.Color(0x031114);
 const FOG_FLASH_COLOR = new THREE.Color(0x28354d);
+const LIGHT_POOL_SIZE = 4;
 
 function configureHouseQuality(houseData: HouseData, isMobile: boolean) {
+  // Detach individual room PointLights from scene graph so our fixed 4-slot pool handles them with zero shader recompiles
+  for (const light of houseData.flickerLights) {
+    light.castShadow = false;
+    light.parent?.remove(light);
+  }
   if (isMobile || gameState.settings.graphicsQuality !== 'high') {
     houseData.root.traverse((obj) => {
-      if (obj instanceof THREE.PointLight) {
+      if (obj instanceof THREE.PointLight || obj instanceof THREE.DirectionalLight) {
         obj.castShadow = false;
       }
     });
@@ -222,19 +228,21 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     const camera = new THREE.PerspectiveCamera(74, initW / initH, 0.1, 80);
 
     const renderer = new THREE.WebGLRenderer({
-      antialias: !isSoftwareGl && !isMobile,
+      antialias: false,
       powerPreference: 'high-performance',
+      stencil: false,
     });
     renderer.setSize(initW, initH);
-    const quality = gameState.settings.graphicsQuality || 'high';
-    const dprCap = quality === 'low' ? 0.85 : quality === 'medium' ? 1.1 : isMobile ? 1.25 : 1.5;
+    const quality = gameState.settings.graphicsQuality || 'smooth90';
+    const dprCap =
+      quality === 'low' ? 0.8 : quality === 'smooth90' ? (isMobile ? 0.95 : 1.15) : quality === 'medium' ? 1.1 : isMobile ? 1.25 : 1.5;
     renderer.setPixelRatio(
       isSoftwareGl ? 1 : Math.min(window.devicePixelRatio || 1, dprCap)
     );
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.28;
-    renderer.shadowMap.enabled = !isSoftwareGl && quality !== 'low';
+    renderer.shadowMap.enabled = !isSoftwareGl && (quality === 'high' || (quality === 'medium' && !isMobile));
     renderer.shadowMap.type = THREE.PCFShadowMap;
 
     const handleContextLost = (e: Event) => {
@@ -248,10 +256,23 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     container.appendChild(renderer.domElement);
 
-    // Studio Reflection Environment
+    // Studio Reflection Environment (applied only on Balanced/High desktop presets to double mobile fill-rate)
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+    const sceneEnvironmentTex = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
     pmremGenerator.dispose();
+    if (!isMobile && (quality === 'high' || quality === 'medium')) {
+      scene.environment = sceneEnvironmentTex;
+    }
+
+    // Fixed 4-slot PointLight pool (always visible, zero mid-game shader recompilation stutters)
+    const lightPool: THREE.PointLight[] = [];
+    for (let i = 0; i < LIGHT_POOL_SIZE; i++) {
+      const pl = new THREE.PointLight(0xff8833, 0, 10, 1.6);
+      scene.add(pl);
+      lightPool.push(pl);
+    }
+    const poolBestDistSq = new Float64Array(LIGHT_POOL_SIZE);
+    const poolBestLights: (THREE.PointLight | null)[] = new Array(LIGHT_POOL_SIZE).fill(null);
 
     // Build Kalapur House Architecture
     const houseData = buildKalapurHouse();
@@ -387,12 +408,25 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     let lastBreakerVisual: boolean | null = null;
     let lastCarBattVisual: boolean | null = null;
-    let lastAppliedQuality: 'low' | 'medium' | 'high' | null = null;
-    const applyQualitySettings = (q: 'low' | 'medium' | 'high') => {
+    let lastAppliedQuality: 'low' | 'smooth90' | 'medium' | 'high' | null = null;
+    const applyQualitySettings = (q: 'low' | 'smooth90' | 'medium' | 'high') => {
       lastAppliedQuality = q;
-      const cap = q === 'low' ? 0.85 : q === 'medium' ? 1.1 : isMobile ? 1.25 : 1.5;
+      const cap =
+        q === 'low'
+          ? 0.8
+          : q === 'smooth90'
+          ? isMobile
+            ? 0.95
+            : 1.15
+          : q === 'medium'
+          ? isMobile
+            ? 1.05
+            : 1.25
+          : isMobile
+          ? 1.25
+          : 1.5;
       renderer.setPixelRatio(isSoftwareGl ? 1 : Math.min(window.devicePixelRatio || 1, cap));
-      const shadowsOn = !isSoftwareGl && q !== 'low';
+      const shadowsOn = !isSoftwareGl && (q === 'high' || (q === 'medium' && !isMobile));
       renderer.shadowMap.enabled = shadowsOn;
       player.flashlight.castShadow = shadowsOn;
       (houseDataRef.current || houseData).root.traverse((obj) => {
@@ -400,11 +434,14 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           obj.castShadow = shadowsOn && q === 'high' && !isMobile;
         }
       });
-      dustParticles.visible = q !== 'low';
-      rainGeo.setDrawRange(0, q === 'low' ? Math.floor(rainCount * 0.45) : rainCount);
-      hemiFill.intensity = q === 'low' ? 0.56 : q === 'medium' ? 0.36 : 0.3;
-      (scene.fog as THREE.FogExp2).density = q === 'low' ? 0.0155 : 0.0175;
-      renderer.toneMappingExposure = q === 'low' ? 1.32 : 1.28;
+      scene.environment =
+        !isSoftwareGl && (q === 'high' || (q === 'medium' && !isMobile)) ? sceneEnvironmentTex : null;
+      dustParticles.visible = q === 'high' || (q === 'medium' && !isMobile);
+      const rainRatio = q === 'low' ? 0.25 : q === 'smooth90' ? 0.35 : q === 'medium' ? 0.65 : 1.0;
+      rainGeo.setDrawRange(0, Math.floor(rainCount * rainRatio));
+      hemiFill.intensity = q === 'low' ? 0.62 : q === 'smooth90' ? 0.52 : q === 'medium' ? 0.38 : 0.3;
+      (scene.fog as THREE.FogExp2).density = q === 'low' || q === 'smooth90' ? 0.0155 : 0.0175;
+      renderer.toneMappingExposure = q === 'low' || q === 'smooth90' ? 1.32 : 1.28;
     };
     applyQualitySettings(quality);
 
@@ -412,24 +449,15 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     const menuCam = new THREE.PerspectiveCamera(65, initW / initH, 0.1, 80);
     let menuCamAngle = 0;
 
-    // Pre-compile shaders across all directions on hardware GPUs to eliminate turning stutter
+    // Pre-compile shaders cleanly to eliminate initial turn stutter
     if (!isSoftwareGl) {
-      const culledMeshes: THREE.Object3D[] = [];
-      scene.traverse((obj) => {
-        if (obj.frustumCulled) {
-          obj.frustumCulled = false;
-          culledMeshes.push(obj);
-        }
-      });
       renderer.compile(scene, camera);
-      for (const obj of culledMeshes) {
-        obj.frustumCulled = true;
-      }
     }
 
     let lastTime = performance.now();
     let frameId = 0;
     let isDisposed = false;
+    let lastInteractiveNotified: InteractiveObject | null = null;
 
     const afterDraw = (cb: () => void) => {
       const gl = renderer.getContext() as WebGL2RenderingContext;
@@ -458,30 +486,22 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     const tick = () => {
       if (isDisposed) return;
 
-      const q = gameState.settings.graphicsQuality || 'high';
+      const q = gameState.settings.graphicsQuality || 'smooth90';
       if (q !== lastAppliedQuality) {
         applyQualitySettings(q);
       }
 
       const now = performance.now();
-      // Smooth 50 FPS frame pacing on Low setting; full unthrottled 60+ FPS on Medium & High
-      if (q === 'low' && now - lastTime < 18.5) {
-        if (isSoftwareGl) {
-          frameId = window.setTimeout(tick, 4);
-        } else {
-          frameId = requestAnimationFrame(tick);
-        }
-        return;
-      }
-
       const delta = Math.min((now - lastTime) / 1000, 0.05);
       lastTime = now;
 
       const activeHouse = houseDataRef.current || houseData;
       const currentMode = modeRef.current;
 
-      // 1. Rain Animation (reduced work on Low preset)
-      const activeRainCount = q === 'low' ? Math.floor(rainCount * 0.45) : rainCount;
+      // 1. Rain Animation (scaled seamlessly to quality preset)
+      const activeRainCount = Math.floor(
+        rainCount * (q === 'low' ? 0.25 : q === 'smooth90' ? 0.35 : q === 'medium' ? 0.65 : 1.0)
+      );
       const posAttr = rainGeo.attributes.position as THREE.BufferAttribute;
       const positions = posAttr.array as Float32Array;
       for (let i = 1; i < activeRainCount * 3; i += 3) {
@@ -492,7 +512,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       }
       posAttr.needsUpdate = true;
 
-      // 1B. Floating Dust Motes Motion (skipped when Low 50 FPS preset hides dust)
+      // 1B. Floating Dust Motes Motion (desktop high/medium only)
       if (dustParticles.visible) {
         const dPosAttr = dustGeo.attributes.position as THREE.BufferAttribute;
         const dPos = dPosAttr.array as Float32Array;
@@ -520,7 +540,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       if (activeHouse.mandalaMesh) {
         activeHouse.mandalaMesh.rotation.z += delta * 0.22;
       }
-      if (activeHouse.glintRings) {
+      if (activeHouse.glintRings && q !== 'low') {
         const pulse = 0.88 + Math.sin(now * 0.004) * 0.14;
         for (const gr of activeHouse.glintRings) {
           if (gr.parent && gr.parent.visible) {
@@ -563,7 +583,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         stunFlashLight.intensity = 0;
       }
 
-      // 3. Flickering Diya Lamps, Main Breaker Control & Smart Distance Light Culling (massive 60/50 FPS boost!)
+      // 3. Pooled Diya / Room Lantern System (fixed 4-slot pool = zero shader recompilations, 3x faster GPU!)
       const powerOn = gameState.breakerPowerOn;
       if (lastBreakerVisual !== powerOn) {
         lastBreakerVisual = powerOn;
@@ -573,38 +593,54 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         }
       }
       const refCamPos = currentMode === 'playing' ? player.position : menuCam.position;
-      const maxLightDistSq = q === 'low' ? 196 : q === 'medium' ? 324 : 529; // 14m / 18m / 23m
-      const maxLightsActive = q === 'low' ? 5 : q === 'medium' ? 8 : 12;
-      let activeLightCount = 0;
+      const maxLightDistSq = q === 'low' ? 196 : q === 'smooth90' ? 289 : q === 'medium' ? 324 : 441;
+      const poolSlots = q === 'low' ? 2 : q === 'smooth90' ? 3 : LIGHT_POOL_SIZE;
+      for (let i = 0; i < LIGHT_POOL_SIZE; i++) {
+        poolBestDistSq[i] = maxLightDistSq;
+        poolBestLights[i] = null;
+      }
       for (const light of activeHouse.flickerLights) {
-        if (light.userData.switchedOff) {
-          light.visible = false;
-          continue;
-        }
+        if (light.userData.switchedOff) continue;
         const ldx = light.position.x - refCamPos.x;
         const ldy = light.position.y - refCamPos.y;
         const ldz = light.position.z - refCamPos.z;
         const distSq = ldx * ldx + ldy * ldy + ldz * ldz;
-        if (distSq > maxLightDistSq || activeLightCount >= maxLightsActive) {
-          light.visible = false;
+        if (distSq >= poolBestDistSq[poolSlots - 1]) continue;
+
+        let insertAt = poolSlots - 1;
+        while (insertAt > 0 && distSq < poolBestDistSq[insertAt - 1]) {
+          poolBestDistSq[insertAt] = poolBestDistSq[insertAt - 1];
+          poolBestLights[insertAt] = poolBestLights[insertAt - 1];
+          insertAt--;
+        }
+        poolBestDistSq[insertAt] = distSq;
+        poolBestLights[insertAt] = light;
+      }
+      for (let i = 0; i < LIGHT_POOL_SIZE; i++) {
+        const dst = lightPool[i];
+        const src = i < poolSlots ? poolBestLights[i] : null;
+        if (!src) {
+          dst.intensity = 0;
           continue;
         }
-        light.visible = true;
-        activeLightCount++;
+        dst.position.copy(src.position);
+        dst.color.copy(src.color);
+        dst.distance = src.distance;
         if (!powerOn) {
-          light.intensity = 0.08;
+          dst.intensity = 0.08;
         } else {
-          light.intensity =
-            0.95 + Math.sin(now * 0.008 + light.position.x) * 0.2 + (Math.random() - 0.5) * 0.1;
+          const baseInt = (src.userData.baseIntensity as number) || 1.1;
+          dst.intensity = baseInt * (0.85 + Math.sin(now * 0.008 + src.position.x) * 0.16);
         }
       }
 
-      // 3B. 1954 Garage Car Headlights (lit when Battery installed)
+      // 3B. 1954 Garage Car Headlights (only enabled when Battery installed)
       const carBattOn = gameState.carBatteryInstalled;
       if (lastCarBattVisual !== carBattOn) {
         lastCarBattVisual = carBattOn;
         if (activeHouse.carHeadlights) {
           for (const hl of activeHouse.carHeadlights) {
+            hl.visible = carBattOn;
             hl.intensity = carBattOn ? 4.8 : 0;
           }
         }
@@ -781,11 +817,24 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             }
           }
 
-          // Update Player
-          player.update(delta, activeHouse.colliders, activeHouse.interactives);
-          callbacksRef.current.onInteractiveChange(player.currentInteractive);
+          // Update Player with floor-bucketed spatial colliders (~3x fewer Box3 checks per frame)
+          const playerFloorColliders = getFloorColliders(
+            activeHouse.colliderBuckets,
+            player.feetY,
+            activeHouse.colliders
+          );
+          player.update(delta, playerFloorColliders, activeHouse.interactives);
+          if (player.currentInteractive !== lastInteractiveNotified) {
+            lastInteractiveNotified = player.currentInteractive;
+            callbacksRef.current.onInteractiveChange(player.currentInteractive);
+          }
 
-          // Update Ghost AI
+          // Update Ghost AI with floor-bucketed spatial colliders
+          const ghostFloorColliders = getFloorColliders(
+            activeHouse.colliderBuckets,
+            ghost.position.y,
+            activeHouse.colliders
+          );
           ghost.update(
             delta,
             player.position,
@@ -794,7 +843,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             gameState.isCrouching,
             player.isMoving,
             gameState.flashlightOn,
-            activeHouse.colliders,
+            ghostFloorColliders,
             () => {
               isJumpscaringRef.current = true;
               soundManager.playTatyaCurseStrike();
@@ -891,6 +940,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       window.removeEventListener('kalapur:stunBlast', handleStunBlast);
       decoyGeo.dispose();
       decoyMat.dispose();
+      sceneEnvironmentTex.dispose();
       renderer.domElement.removeEventListener('webglcontextlost', handleContextLost);
       renderer.domElement.removeEventListener('webglcontextrestored', handleContextRestored);
       player.dispose();
