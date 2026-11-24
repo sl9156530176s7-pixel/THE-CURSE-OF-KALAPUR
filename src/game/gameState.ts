@@ -10,6 +10,7 @@ export interface GameSettings {
   mouseSensitivity: number;
   movementSensitivity: number;
   graphicsQuality: 'low' | 'smooth90' | 'medium' | 'high';
+  lightingMode: 'dark' | 'light';
   fpsPresetVersion?: number;
   showSubtitles: boolean;
   villainType: 'tatya' | 'ghost';
@@ -118,6 +119,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   mouseSensitivity: 0.85,
   movementSensitivity: 1.0,
   graphicsQuality: 'smooth90',
+  lightingMode: 'dark',
   fpsPresetVersion: 2,
   showSubtitles: true,
   villainType: 'tatya',

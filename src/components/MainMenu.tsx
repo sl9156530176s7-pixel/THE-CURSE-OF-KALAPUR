@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { gameState, GameSettings } from '../game/gameState';
 import { soundManager } from '../audio/SoundManager';
-import { Play, RotateCcw, Settings, HelpCircle, X, Volume2, Shield, Eye, Flame, Compass, Youtube, Image as ImageIcon, Music, Download, Globe, RefreshCw, Star } from 'lucide-react';
+import { Play, RotateCcw, Settings, HelpCircle, X, Volume2, Shield, Eye, Flame, Compass, Youtube, Image as ImageIcon, Music, Download, Globe, RefreshCw, Star, Sun, Moon } from 'lucide-react';
 import officialLogoImg from '../assets/images/kalapur_official_logo_1793628694332.jpg';
 
 interface MainMenuProps {
@@ -112,8 +112,31 @@ export const MainMenu: React.FC<MainMenuProps> = ({
           </div>
         </div>
 
-        {/* On-Screen Song Toggle & Founder Badge */}
-        <div className="flex items-center gap-3">
+        {/* Lighting Mode Toggle, Song Toggle & Founder Badge */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Quick Dark Mode / Light Mode Toggle */}
+          <button
+            onClick={() =>
+              handleSettingChange(
+                'lightingMode',
+                (settings.lightingMode || 'dark') === 'dark' ? 'light' : 'dark'
+              )
+            }
+            className={`flex items-center gap-2 px-3 py-2.5 rounded text-xs tracking-wider uppercase font-mono transition-all duration-300 cursor-pointer border shadow-xl ${
+              (settings.lightingMode || 'dark') === 'light'
+                ? 'bg-sky-950/90 hover:bg-sky-900 border-amber-400/80 text-amber-200 shadow-[0_0_16px_rgba(251,191,36,0.3)]'
+                : 'bg-stone-950/90 hover:bg-stone-900 border-stone-700 text-stone-300'
+            }`}
+            title="Switch between Dark Mode (Flashlight Only) and Light Mode (All Lights On)"
+          >
+            {(settings.lightingMode || 'dark') === 'light' ? (
+              <Sun className="w-4 h-4 text-amber-300" />
+            ) : (
+              <Moon className="w-4 h-4 text-red-400" />
+            )}
+            <span>{(settings.lightingMode || 'dark') === 'light' ? 'LIGHT MODE' : 'DARK MODE'}</span>
+          </button>
+
           {/* Dedicated On-Screen Song On/Off Button */}
           <button
             onClick={() => {
@@ -439,6 +462,42 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                         {q.label}
                       </button>
                     ))}
+                  </div>
+                </div>
+
+                {/* Lighting Mode (Dark Mode vs Light Mode) */}
+                <div className="flex flex-wrap justify-between items-center pt-2 border-t border-stone-800 gap-2">
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-stone-200">Lighting Mode</span>
+                    <span className="text-[10px] text-stone-500">
+                      {(settings.lightingMode || 'dark') === 'dark'
+                        ? 'Dark Mode: Zero room lights, Flashlight only'
+                        : 'Light Mode: All haveli lights ON, no darkness'}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleSettingChange('lightingMode', 'dark')}
+                      className={`px-3 py-1.5 text-xs uppercase tracking-wider rounded border cursor-pointer font-bold flex items-center gap-1.5 ${
+                        (settings.lightingMode || 'dark') === 'dark'
+                          ? 'bg-red-900 border-red-500 text-white shadow-[0_0_12px_rgba(220,38,38,0.5)]'
+                          : 'bg-stone-900 border-stone-800 text-stone-400 hover:border-stone-700'
+                      }`}
+                    >
+                      <Moon className="w-3.5 h-3.5" />
+                      <span>Dark</span>
+                    </button>
+                    <button
+                      onClick={() => handleSettingChange('lightingMode', 'light')}
+                      className={`px-3 py-1.5 text-xs uppercase tracking-wider rounded border cursor-pointer font-bold flex items-center gap-1.5 ${
+                        (settings.lightingMode || 'dark') === 'light'
+                          ? 'bg-amber-600 border-amber-300 text-black shadow-[0_0_12px_rgba(251,191,36,0.5)]'
+                          : 'bg-stone-900 border-stone-800 text-stone-400 hover:border-stone-700'
+                      }`}
+                    >
+                      <Sun className="w-3.5 h-3.5" />
+                      <span>Light</span>
+                    </button>
                   </div>
                 </div>
 

@@ -336,19 +336,19 @@ export class PlayerController {
       // Supernatural horror flashlight disturbance when Tatya approaches or chases
       if (gameState.ghostDistance < 7.0 || gameState.ghostState === 'chase') {
         const proximityRatio = Math.max(0, 1 - gameState.ghostDistance / 7.0);
-        if (Math.random() < 0.28 + proximityRatio * 0.45) {
-          this.flashlight.intensity = Math.random() < 0.3 ? 0.08 : (1.2 + Math.random() * 2.6);
-          this.flashlightBulb.intensity = Math.random() < 0.3 ? 0.08 : 0.4;
+        if (Math.random() < 0.25 + proximityRatio * 0.4) {
+          this.flashlight.intensity = Math.random() < 0.25 ? 0.25 : (1.8 + Math.random() * 2.8);
+          this.flashlightBulb.intensity = Math.random() < 0.25 ? 0.15 : 0.55;
         } else {
-          this.flashlight.intensity = 4.6;
-          this.flashlightBulb.intensity = 0.95;
+          this.flashlight.intensity = 6.0;
+          this.flashlightBulb.intensity = 1.25;
         }
       } else if (gameState.flashlightBattery < 15) {
-        this.flashlight.intensity = Math.random() > 0.3 ? 3.8 : 0.7;
-        this.flashlightBulb.intensity = Math.random() > 0.3 ? 0.9 : 0.25;
+        this.flashlight.intensity = Math.random() > 0.3 ? 4.6 : 1.0;
+        this.flashlightBulb.intensity = Math.random() > 0.3 ? 1.05 : 0.35;
       } else {
-        this.flashlight.intensity = 4.5;
-        this.flashlightBulb.intensity = 0.95;
+        this.flashlight.intensity = 6.0;
+        this.flashlightBulb.intensity = 1.25;
       }
     }
 

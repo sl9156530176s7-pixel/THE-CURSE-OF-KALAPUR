@@ -126,6 +126,8 @@ export interface HouseData {
   secretBookcaseMesh?: THREE.Group;
   mandalaMesh?: THREE.Mesh;
   glintRings?: THREE.Mesh[];
+  hemiLight?: THREE.HemisphereLight;
+  moonLight?: THREE.DirectionalLight;
 }
 
 /**
@@ -2696,5 +2698,7 @@ export function buildKalapurHouse(): HouseData {
     secretBookcaseMesh: secretBookcaseGroup,
     mandalaMesh,
     glintRings,
+    hemiLight,
+    moonLight,
   };
 }

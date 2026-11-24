@@ -88,6 +88,7 @@ interface LandingPageProps {
   onApplyUpdate: () => void;
   onRateClick: () => void;
   savedRating: SavedPlayerRating | null;
+  onOpenOwnerDashboard: () => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({
@@ -107,6 +108,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   onApplyUpdate,
   onRateClick,
   savedRating,
+  onOpenOwnerDashboard,
 }) => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -436,8 +438,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   </p>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 pt-2 text-xs text-stone-400 border-t border-stone-800/80">
                     <div><strong className="text-stone-200">Platform:</strong> Android, iOS, PC</div>
-                    <div><strong className="text-stone-200">Performance:</strong> 60 FPS High / 50 FPS Low</div>
-                    <div><strong className="text-stone-200">Escape Paths:</strong> Door, Car &amp; Boat</div>
+                    <div><strong className="text-stone-200">Performance:</strong> 90 FPS Smooth &amp; High HD</div>
+                    <div><strong className="text-stone-200">Modes:</strong> Dark (Torch) &amp; Light (All On)</div>
                     <div><strong className="text-stone-200">Offline Play:</strong> Supported (PWA)</div>
                   </div>
                 </div>
@@ -611,9 +613,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
               <div className="rounded-xl border border-stone-800/90 bg-stone-950/70 p-6 space-y-2.5">
                 <span className="text-xs font-mono text-red-400 font-bold">03</span>
-                <h3 className="text-lg font-serif font-bold text-white">60 FPS High &amp; 50 FPS Low</h3>
+                <h3 className="text-lg font-serif font-bold text-white">90 FPS Smooth &amp; Dual Lighting</h3>
                 <p className="text-sm text-stone-400 leading-relaxed">
-                  Tuned for smooth frame pacing on mobile devices and desktops, with damped camera look smoothing and customizable Movement Sensitivity (0.50x to 1.80x).
+                  Tuned up to 90 FPS on mobile and desktop with zero-stutter pooled lights. Switch anytime between classic Dark Mode (Flashlight Only) and bright Light Mode (All Lights On).
                 </p>
               </div>
 
@@ -826,6 +828,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             >
               <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
               <span>{savedRating ? `Rate Us (${savedRating.stars}/5)` : 'Rate Us'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={onOpenOwnerDashboard}
+              className="inline-flex items-center gap-1.5 text-stone-400 hover:text-white cursor-pointer"
+            >
+              <Lock className="w-3.5 h-3.5 text-red-400" />
+              <span>Owner Dashboard</span>
             </button>
             <button
               type="button"

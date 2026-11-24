@@ -7,9 +7,11 @@ import { CinematicEnding } from './components/CinematicEnding';
 import { LandingPage } from './components/LandingPage';
 import { PWAInstallModal } from './components/PWAInstallModal';
 import { RateUsModal, loadSavedRating, SavedPlayerRating } from './components/RateUsModal';
+import { OwnerDashboardModal } from './components/OwnerDashboardModal';
 import { AppSplashLoader } from './components/AppSplashLoader';
 import { GameErrorBoundary } from './components/GameErrorBoundary';
 import { usePWA, detectIsStandalone } from './hooks/usePWA';
+import { recordInstallEvent } from './services/analyticsService';
 import { gameState } from './game/gameState';
 import { soundManager } from './audio/SoundManager';
 import { InteractiveObject } from './game/houseGeometry';
@@ -29,6 +31,9 @@ export default function App() {
   const [jumpscareFlash, setJumpscareFlash] = useState(false);
   const [showInstallModal, setShowInstallModal] = useState(false);
   const [showRateModal, setShowRateModal] = useState(false);
+  const [showOwnerDashboard, setShowOwnerDashboard] = useState<boolean>(() =>
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('owner') === '1'
+  );
   const [savedRating, setSavedRating] = useState<SavedPlayerRating | null>(() => loadSavedRating());
   const [hasSave, setHasSave] = useState<boolean>(() => gameState.hasSave());
 
@@ -162,6 +167,7 @@ export default function App() {
   const handleInstallClick = useCallback(async () => {
     const result = await promptNativeInstall();
     if (result === 'unavailable') {
+      void recordInstallEvent('install_guide_opened');
       setShowInstallModal(true);
     }
   }, [promptNativeInstall]);
@@ -193,6 +199,7 @@ export default function App() {
           onApplyUpdate={applyUpdate}
           onRateClick={() => setShowRateModal(true)}
           savedRating={savedRating}
+          onOpenOwnerDashboard={() => setShowOwnerDashboard(true)}
         />
         <PWAInstallModal
           open={showInstallModal}
@@ -203,6 +210,10 @@ export default function App() {
           open={showRateModal}
           onClose={() => setShowRateModal(false)}
           onSaved={(rating) => setSavedRating(rating)}
+        />
+        <OwnerDashboardModal
+          open={showOwnerDashboard}
+          onClose={() => setShowOwnerDashboard(false)}
         />
       </>
     );

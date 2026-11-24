@@ -1,13 +1,12 @@
 {
-  "version": "2.5.0",
-  "buildId": "2026.11.23-90fps",
+  "version": "2.6.0",
+  "buildId": "2026.11.23-modes-owner",
   "releaseDate": "2026-11-23",
   "developer": "Strange Creation",
   "founder": "Soham Dnyaneshwar Lokhande",
   "highlights": [
-    "New 90 FPS Smooth preset tuned for Android phones and 90Hz/120Hz displays",
-    "Pooled room lighting eliminates mid-game shader compilation stutters",
-    "Spatial floor collider bucketing & static matrix freezing for zero-lag gameplay",
-    "Interactive Rate Us feedback across Strange Creation studio site & Main Menu"
+    "2 Lighting Modes: Dark Mode (no house lights, Flashlight only) & Light Mode (all lights ON, zero darkness)",
+    "Verified Owner Dashboard powered by Firebase Google Sign-In & Firestore for real downloads and player reviews",
+    "90 FPS Smooth default performance preset with pooled lights & spatial collider buckets"
   ]
 }

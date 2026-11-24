@@ -82,7 +82,7 @@ define(['./workbox-02894ca7'], (function (workbox) { 'use strict';
    */
   workbox.precacheAndRoute([{
     "url": "privacy-policy.html",
-    "revision": "a9b4798bf3685db3136cba1d51b4e14f"
+    "revision": "1051962a4caddc67c1f326d11d4509e2"
   }, {
     "url": "offline.html",
     "revision": "e9d6f9d3d445c32c20ff72bb8b2d1002"
@@ -97,7 +97,7 @@ define(['./workbox-02894ca7'], (function (workbox) { 'use strict';
     "revision": "5ee6d2402b0a0c5fd0e14d09e1a5ec20"
   }, {
     "url": "index.html",
-    "revision": "3b3852943bcc6d6f7d11b8863ff72a7c"
+    "revision": "9fec46cde0aff2a0715d6a1d2550835f"
   }, {
     "url": "favicon.svg",
     "revision": "d8334d4ff07ed925f40135fc3ffcc00c"
@@ -153,7 +153,7 @@ define(['./workbox-02894ca7'], (function (workbox) { 'use strict';
     "url": "icons/apple-touch-icon.png",
     "revision": "a13a88b3b44e58a1b358eea91493fd1c"
   }, {
-    "url": "assets/vendor-ui-B9oDM_f8.js",
+    "url": "assets/vendor-ui-DTbaJV6J.js",
     "revision": null
   }, {
     "url": "assets/vendor-three-XsDbzRof.js",
@@ -165,13 +165,13 @@ define(['./workbox-02894ca7'], (function (workbox) { 'use strict';
     "url": "assets/kalapur_official_logo_1793628694332-B4d8jVKw.jpg",
     "revision": null
   }, {
-    "url": "assets/index-BeHa2R8v.css",
+    "url": "assets/index-DJf4RoVB.css",
     "revision": null
   }, {
-    "url": "assets/index-B2jAJwWQ.js",
+    "url": "assets/index-CYVdmHQT.js",
     "revision": null
   }, {
-    "url": "assets/GameCanvas-7omhp1PC.js",
+    "url": "assets/GameCanvas-BekfHNxL.js",
     "revision": null
   }, {
     "url": "assets/aistudio/image_476c18a2.png",
@@ -188,7 +188,7 @@ define(['./workbox-02894ca7'], (function (workbox) { 'use strict';
   });
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html"), {
-    denylist: [/^\/api\//, /offline\.html$/, /privacy-policy\.html$/]
+    denylist: [/^\/api\//, /^\/__\//, /offline\.html$/, /privacy-policy\.html$/]
   }));
   workbox.registerRoute(({
     url

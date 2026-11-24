@@ -1,0 +1,149 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Reusable Hardened Security Helpers
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isOwnerEmail() {
+      return isSignedIn() && request.auth.token.email == 'sl9156530176s7@gmail.com';
+    }
+
+    function isAdmin() {
+      return isOwnerEmail() || (isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    function isValidDownloadEvent(data) {
+      return data.keys().hasAll([
+          'appId',
+          'deviceClientId',
+          'platform',
+          'browser',
+          'installType',
+          'appVersion',
+          'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'appId',
+          'deviceClientId',
+          'platform',
+          'browser',
+          'installType',
+          'appVersion',
+          'playerTag',
+          'createdAt'
+        ]) &&
+        data.appId is string && data.appId == 'curse-of-kalapur' &&
+        data.deviceClientId is string &&
+        data.deviceClientId.size() >= 6 &&
+        data.deviceClientId.size() <= 64 &&
+        data.deviceClientId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.platform is string &&
+        data.platform in ['android', 'ios', 'desktop', 'other'] &&
+        data.browser is string &&
+        data.browser.size() >= 1 &&
+        data.browser.size() <= 48 &&
+        data.installType is string &&
+        data.installType in ['pwa_installed', 'install_prompt_accepted', 'install_guide_opened', 'standalone_launch'] &&
+        data.appVersion is string &&
+        data.appVersion.size() >= 1 &&
+        data.appVersion.size() <= 24 &&
+        (!('playerTag' in data) || (data.playerTag is string && data.playerTag.size() <= 40)) &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidPlayerRating(data) {
+      return data.keys().hasAll([
+          'appId',
+          'deviceClientId',
+          'stars',
+          'comment',
+          'platform',
+          'appVersion',
+          'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'appId',
+          'deviceClientId',
+          'stars',
+          'comment',
+          'playerTag',
+          'platform',
+          'appVersion',
+          'createdAt'
+        ]) &&
+        data.appId is string && data.appId == 'curse-of-kalapur' &&
+        data.deviceClientId is string &&
+        data.deviceClientId.size() >= 6 &&
+        data.deviceClientId.size() <= 64 &&
+        data.deviceClientId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.stars is int &&
+        data.stars >= 1 &&
+        data.stars <= 5 &&
+        data.comment is string &&
+        data.comment.size() <= 500 &&
+        (!('playerTag' in data) || (data.playerTag is string && data.playerTag.size() <= 40)) &&
+        data.platform is string &&
+        data.platform in ['android', 'ios', 'desktop', 'other'] &&
+        data.appVersion is string &&
+        data.appVersion.size() >= 1 &&
+        data.appVersion.size() <= 24 &&
+        data.createdAt is timestamp;
+    }
+
+    // 3. Admins Lookup Collection (Strictly Locked Against Client Writes)
+    match /admins/{adminId} {
+      allow get: if isValidId(adminId) && isSignedIn() && (request.auth.uid == adminId || isOwnerEmail());
+      allow list, create, update, delete: if false;
+    }
+
+    // 4. Downloads Collection (Public strict schema-only create; Owner-only read/list/manage)
+    match /downloads/{downloadId} {
+      allow get: if isValidId(downloadId) && isAdmin();
+      allow list: if isOwnerEmail() && resource.data.appId == 'curse-of-kalapur';
+      allow create: if isValidId(downloadId) &&
+        isValidDownloadEvent(incoming()) &&
+        incoming().createdAt == request.time;
+      allow update: if isValidId(downloadId) &&
+        isAdmin() &&
+        isValidDownloadEvent(incoming()) &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['playerTag']);
+      allow delete: if isValidId(downloadId) && isAdmin();
+    }
+
+    // 5. Ratings Collection (Public strict schema-only create; Owner-only read/list/manage)
+    match /ratings/{ratingId} {
+      allow get: if isValidId(ratingId) && isAdmin();
+      allow list: if isOwnerEmail() && resource.data.appId == 'curse-of-kalapur';
+      allow create: if isValidId(ratingId) &&
+        isValidPlayerRating(incoming()) &&
+        incoming().createdAt == request.time;
+      allow update: if isValidId(ratingId) &&
+        isAdmin() &&
+        isValidPlayerRating(incoming()) &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['comment', 'playerTag']);
+      allow delete: if isValidId(ratingId) && isAdmin();
+    }
+  }
+}

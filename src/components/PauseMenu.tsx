@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Play, RotateCcw, Settings, HelpCircle, Home, Save, Volume2, X, Music, Maximize2 } from 'lucide-react';
+import { Play, RotateCcw, Settings, HelpCircle, Home, Save, Volume2, X, Music, Maximize2, Sun, Moon } from 'lucide-react';
 import { gameState, GameSettings } from '../game/gameState';
 import { soundManager } from '../audio/SoundManager';
 
@@ -88,6 +88,30 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({ onResume, onSave, onMainMe
           >
             <HelpCircle className="w-4 h-4 text-stone-400" />
             Controls Guide
+          </button>
+
+          {/* Quick Lighting Mode Toggle (Dark Flashlight-Only vs Light All-On) */}
+          <button
+            onClick={() =>
+              handleSettingChange(
+                'lightingMode',
+                (settings.lightingMode || 'dark') === 'dark' ? 'light' : 'dark'
+              )
+            }
+            className={`w-full flex items-center justify-center gap-2 py-2.5 rounded text-xs font-semibold tracking-widest uppercase cursor-pointer transition-all border ${
+              (settings.lightingMode || 'dark') === 'light'
+                ? 'bg-amber-950/70 hover:bg-amber-900/80 border-amber-500/70 text-amber-200'
+                : 'bg-stone-900/80 hover:bg-stone-800 border-stone-700/60 text-stone-200'
+            }`}
+          >
+            {(settings.lightingMode || 'dark') === 'light' ? (
+              <Sun className="w-4 h-4 text-amber-300" />
+            ) : (
+              <Moon className="w-4 h-4 text-red-400" />
+            )}
+            <span>
+              Mode: {(settings.lightingMode || 'dark') === 'light' ? 'Light (All Lights On)' : 'Dark (Flashlight Only)'}
+            </span>
           </button>
 
           {/* Fullscreen Toggle */}
@@ -207,6 +231,42 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({ onResume, onSave, onMainMe
                       {q.label}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Lighting Mode (Dark vs Light) */}
+              <div className="flex justify-between items-center pt-2 border-t border-stone-800 gap-2">
+                <div className="flex flex-col text-left">
+                  <span className="font-semibold text-stone-200">Lighting Mode</span>
+                  <span className="text-[10px] text-stone-500">
+                    {(settings.lightingMode || 'dark') === 'dark'
+                      ? 'No room lights — Flashlight only'
+                      : 'All house lights ON — No dark'}
+                  </span>
+                </div>
+                <div className="flex gap-1.5 shrink-0">
+                  <button
+                    onClick={() => handleSettingChange('lightingMode', 'dark')}
+                    className={`px-2.5 py-1 rounded border cursor-pointer font-bold text-[10px] uppercase flex items-center gap-1 ${
+                      (settings.lightingMode || 'dark') === 'dark'
+                        ? 'bg-red-900 border-red-500 text-white'
+                        : 'bg-stone-900 border-stone-800 text-stone-400'
+                    }`}
+                  >
+                    <Moon className="w-3 h-3" />
+                    <span>Dark</span>
+                  </button>
+                  <button
+                    onClick={() => handleSettingChange('lightingMode', 'light')}
+                    className={`px-2.5 py-1 rounded border cursor-pointer font-bold text-[10px] uppercase flex items-center gap-1 ${
+                      (settings.lightingMode || 'dark') === 'light'
+                        ? 'bg-amber-500 border-amber-300 text-black'
+                        : 'bg-stone-900 border-stone-800 text-stone-400'
+                    }`}
+                  >
+                    <Sun className="w-3 h-3" />
+                    <span>Light</span>
+                  </button>
                 </div>
               </div>
 

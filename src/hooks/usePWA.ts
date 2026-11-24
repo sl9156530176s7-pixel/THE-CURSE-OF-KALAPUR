@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { GAME_VERSION, GAME_BUILD_ID } from '../game/version';
+import { recordInstallEvent } from '../services/analyticsService';
 
 export interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -125,13 +126,21 @@ export function usePWA() {
     const handleAppInstalled = () => {
       setDeferredPrompt(null);
       setIsInstalled(true);
+      void recordInstallEvent('pwa_installed');
     };
+
+    if (detectIsStandalone()) {
+      void recordInstallEvent('standalone_launch');
+    }
 
     const mediaQuery = window.matchMedia('(display-mode: standalone)');
     const handleDisplayChange = () => {
       const standaloneNow = detectIsStandalone();
       setIsStandalone(standaloneNow);
-      if (standaloneNow) setIsInstalled(true);
+      if (standaloneNow) {
+        setIsInstalled(true);
+        void recordInstallEvent('standalone_launch');
+      }
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
@@ -209,6 +218,7 @@ export function usePWA() {
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') {
         setDeferredPrompt(null);
+        void recordInstallEvent('install_prompt_accepted');
       }
       return outcome;
     } catch {

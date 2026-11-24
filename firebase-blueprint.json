@@ -1,0 +1,169 @@
+{
+  "entities": {
+    "DownloadEvent": {
+      "title": "DownloadEvent",
+      "description": "Privacy-safe PWA install and standalone launch record for The Curse of Kalapur.",
+      "type": "object",
+      "properties": {
+        "appId": {
+          "type": "string",
+          "enum": ["curse-of-kalapur"],
+          "description": "Application identifier used for scoped owner list queries."
+        },
+        "deviceClientId": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Random anonymous per-browser identifier generated locally."
+        },
+        "platform": {
+          "type": "string",
+          "enum": ["android", "ios", "desktop", "other"],
+          "description": "Detected visitor device category."
+        },
+        "browser": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 48,
+          "description": "Detected browser label."
+        },
+        "installType": {
+          "type": "string",
+          "enum": [
+            "pwa_installed",
+            "install_prompt_accepted",
+            "install_guide_opened",
+            "standalone_launch"
+          ],
+          "description": "How the visitor installed or launched the PWA."
+        },
+        "appVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 24,
+          "description": "Game build version string."
+        },
+        "playerTag": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 40,
+          "description": "Optional player-provided nickname."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the install record."
+        }
+      },
+      "required": [
+        "appId",
+        "deviceClientId",
+        "platform",
+        "browser",
+        "installType",
+        "appVersion",
+        "createdAt"
+      ]
+    },
+    "PlayerRating": {
+      "title": "PlayerRating",
+      "description": "Star rating and optional feedback submitted via Rate Us.",
+      "type": "object",
+      "properties": {
+        "appId": {
+          "type": "string",
+          "enum": ["curse-of-kalapur"],
+          "description": "Application identifier used for scoped owner list queries."
+        },
+        "deviceClientId": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Random anonymous per-browser identifier generated locally."
+        },
+        "stars": {
+          "type": "integer",
+          "description": "Star rating from 1 to 5."
+        },
+        "comment": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 500,
+          "description": "Optional written review or feedback."
+        },
+        "playerTag": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 40,
+          "description": "Optional player-provided nickname."
+        },
+        "platform": {
+          "type": "string",
+          "enum": ["android", "ios", "desktop", "other"],
+          "description": "Detected visitor device category."
+        },
+        "appVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 24,
+          "description": "Game build version string."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of submission."
+        }
+      },
+      "required": [
+        "appId",
+        "deviceClientId",
+        "stars",
+        "comment",
+        "platform",
+        "appVersion",
+        "createdAt"
+      ]
+    },
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Elevated studio administrator role marker keyed by Firebase Auth UID.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 120,
+          "description": "Administrator email address."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when admin entry was created."
+        }
+      },
+      "required": ["email", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/downloads/{downloadId}": {
+      "schema": {
+        "$ref": "#/entities/DownloadEvent"
+      },
+      "description": "Privacy-safe install/download records readable only by the verified studio owner."
+    },
+    "/ratings/{ratingId}": {
+      "schema": {
+        "$ref": "#/entities/PlayerRating"
+      },
+      "description": "Player Rate Us ratings and comments readable only by the verified studio owner."
+    },
+    "/admins/{adminId}": {
+      "schema": {
+        "$ref": "#/entities/AdminUser"
+      },
+      "description": "Trusted administrator lookup collection locked against client self-escalation."
+    }
+  }
+}

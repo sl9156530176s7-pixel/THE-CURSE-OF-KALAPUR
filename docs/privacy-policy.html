@@ -133,12 +133,12 @@
     <main>
       <p class="eyebrow">Security &amp; Player Trust</p>
       <h1>Privacy Policy</h1>
-      <p class="updated">Effective Date: November 23, 2026 • Studio: Strange Creation (The Curse of Kalapur v2.4.0)</p>
+      <p class="updated">Effective Date: November 23, 2026 • Studio: Strange Creation (The Curse of Kalapur v2.6.0)</p>
 
       <section>
-        <h2>1. Zero Unnecessary Data Collection</h2>
+        <h2>1. Minimal, Non-Personal Data Only</h2>
         <p>
-          Strange Creation does not collect, sell, rent, or transmit personally identifiable information such as your name, home address, email address, phone number, IP tracking profiles, or third-party advertising identifiers.
+          Strange Creation never asks visitors for names, phone numbers, home addresses, contacts, or advertising tracking IDs to download or play. When you install the PWA or submit a voluntary <strong>Rate Us</strong> review while online, we record only anonymous technical stats: device type (Android, iPhone/iPad, or Desktop), browser family, build version, install event type, random anonymous browser ID, and any optional review comment or nickname you choose to type.
         </p>
       </section>
 
@@ -151,18 +151,18 @@
 
       <section>
         <h2>3. Local Device Storage &amp; Offline Caching</h2>
-        <p>The Progressive Web App (PWA) stores only non-sensitive gameplay data locally on your device:</p>
+        <p>The Progressive Web App (PWA) stores gameplay preferences locally on your device so you can play offline:</p>
         <ul>
           <li>Saved game checkpoints and day counter progress in <code>localStorage</code>.</li>
-          <li>Audio volume, horror song toggle, graphics quality preset, and look/movement sensitivity preferences.</li>
+          <li>Audio volume, horror song toggle, Lighting Mode (Dark / Light), graphics quality preset, and look/movement sensitivity preferences.</li>
           <li>Static application files, 3D textures, icons, and audio cached by <code>service-worker.js</code> for fast loading and offline single-player support.</li>
         </ul>
       </section>
 
       <section>
-        <h2>4. HTTPS Security &amp; Safe Updates</h2>
+        <h2>4. Owner Dashboard &amp; HTTPS Security</h2>
         <p>
-          All application code is delivered exclusively over HTTPS via GitHub Pages. Strange Creation never distributes third-party APK binaries, executable installers, or unverified background scripts. Software updates are verified directly through your browser's Service Worker cache manifest and <code>version.json</code>.
+          Install analytics and player ratings are stored securely in Google Cloud Firestore and restricted strictly to the verified studio owner via Google Sign-In. All application files are delivered over HTTPS; Strange Creation never distributes third-party APK binaries or unverified executables.
         </p>
       </section>
 

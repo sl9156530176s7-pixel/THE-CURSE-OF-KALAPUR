@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Star, X, CheckCircle2, ExternalLink, MessageSquare } from 'lucide-react';
+import { recordPlayerRating } from '../services/analyticsService';
 
 const RATING_STORAGE_KEY = 'kalapur_player_rating_v1';
 
 export interface SavedPlayerRating {
   stars: number;
   comment: string;
+  playerTag?: string;
   updatedAt: string;
 }
 
@@ -43,6 +45,7 @@ export const RateUsModal: React.FC<RateUsModalProps> = ({ open, onClose, onSaved
   const [stars, setStars] = useState<number>(0);
   const [hoverStars, setHoverStars] = useState<number>(0);
   const [comment, setComment] = useState<string>('');
+  const [playerTag, setPlayerTag] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [submitted, setSubmitted] = useState<boolean>(false);
 
@@ -52,9 +55,11 @@ export const RateUsModal: React.FC<RateUsModalProps> = ({ open, onClose, onSaved
     if (existing) {
       setStars(existing.stars);
       setComment(existing.comment);
+      setPlayerTag(existing.playerTag || '');
     } else {
       setStars(0);
       setComment('');
+      setPlayerTag('');
     }
     setErrorMsg('');
     setSubmitted(false);
@@ -71,9 +76,11 @@ export const RateUsModal: React.FC<RateUsModalProps> = ({ open, onClose, onSaved
       return;
     }
     const cleanComment = comment.trim().slice(0, 500);
+    const cleanTag = playerTag.trim().slice(0, 40);
     const saved: SavedPlayerRating = {
       stars,
       comment: cleanComment,
+      playerTag: cleanTag || undefined,
       updatedAt: new Date().toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
@@ -81,6 +88,7 @@ export const RateUsModal: React.FC<RateUsModalProps> = ({ open, onClose, onSaved
       }),
     };
     savePlayerRating(saved);
+    void recordPlayerRating(stars, cleanComment, cleanTag || undefined);
     onSaved?.(saved);
     setErrorMsg('');
     setSubmitted(true);
@@ -196,6 +204,21 @@ export const RateUsModal: React.FC<RateUsModalProps> = ({ open, onClose, onSaved
               <div className="h-5 text-xs font-mono text-amber-300 font-semibold">
                 {activeStars > 0 ? `${activeStars}/5 — ${STAR_LABELS[activeStars]}` : 'Tap a star to rate'}
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="kalapur-player-tag" className="block text-xs font-medium text-stone-300">
+                Optional Player Name / Tag
+              </label>
+              <input
+                id="kalapur-player-tag"
+                type="text"
+                maxLength={40}
+                value={playerTag}
+                onChange={(e) => setPlayerTag(e.target.value)}
+                placeholder="Your nickname (optional)"
+                className="w-full rounded-lg border border-stone-800 bg-stone-950 px-3.5 py-2 text-sm text-stone-100 placeholder:text-stone-600 focus:border-amber-500 focus:outline-none"
+              />
             </div>
 
             <div className="space-y-1.5">

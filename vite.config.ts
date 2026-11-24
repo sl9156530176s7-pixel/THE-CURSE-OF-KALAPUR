@@ -30,7 +30,7 @@ export default defineConfig(() => {
           directoryIndex: 'index.html',
           ignoreURLParametersMatching: [/.*/],
           navigateFallback: 'index.html',
-          navigateFallbackDenylist: [/^\/api\//, /offline\.html$/, /privacy-policy\.html$/],
+          navigateFallbackDenylist: [/^\/api\//, /^\/__\//, /offline\.html$/, /privacy-policy\.html$/],
           runtimeCaching: [
             {
               urlPattern: ({url}) => url.pathname.endsWith('version.json'),

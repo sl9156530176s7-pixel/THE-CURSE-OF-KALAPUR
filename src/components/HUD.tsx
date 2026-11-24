@@ -397,8 +397,10 @@ export const HUD: React.FC<HUDProps> = ({ currentInteractive, onPause, onPlayAga
 
   return (
     <div className="absolute inset-0 pointer-events-none select-none z-30 overflow-hidden font-sans">
-      {/* 1. HORROR SCREEN EFFECTS & VIGNETTE */}
-      <div className="absolute inset-0 bg-radial from-transparent via-black/20 to-black/85" />
+      {/* 1. HORROR SCREEN EFFECTS & VIGNETTE (Hidden in Light Mode for full brightness) */}
+      {(gameState.settings.lightingMode || 'dark') === 'dark' && (
+        <div className="absolute inset-0 bg-radial from-transparent via-black/20 to-black/85" />
+      )}
 
       {/* Ghost Chase / Danger Vignette (Pulsing Blood Red) */}
       {(glitch > 0 || isChasing) && (

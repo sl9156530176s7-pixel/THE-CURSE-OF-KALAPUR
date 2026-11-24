@@ -1,5 +1,5 @@
-export const GAME_VERSION = '2.5.0';
-export const GAME_BUILD_ID = '2026.11.23-90fps';
+export const GAME_VERSION = '2.6.0';
+export const GAME_BUILD_ID = '2026.11.23-modes-owner';
 export const GAME_RELEASE_DATE = 'November 23, 2026';
 
 export interface ReleaseChangelogItem {
@@ -10,6 +10,15 @@ export interface ReleaseChangelogItem {
 }
 
 export const RELEASE_CHANGELOG: ReleaseChangelogItem[] = [
+  {
+    version: '2.6.0',
+    date: 'Nov 23, 2026',
+    title: 'Dark & Light Modes + Verified Owner Dashboard',
+    changes: [
+      'Added 2 distinct Lighting Modes selectable in Main Menu & Pause Menu: Dark Mode (zero room light — Flashlight only) and Light Mode (all haveli lights ON with zero darkness).',
+      'Added verified-owner Firebase Studio Dashboard showing real downloader platforms, browsers, install counts, and synced Rate Us player feedback.',
+    ],
+  },
   {
     version: '2.5.0',
     date: 'Nov 23, 2026',
